@@ -2,37 +2,24 @@ import './VDatePickerTitle.sass'
 
 // Components
 import VIcon from '../VIcon'
-
-// Mixins
-import PickerButton from '../../mixins/picker-button'
-
-// Utils
-import mixins from '../../util/mixins'
+import { genPickerButton } from '../VPicker'
 
 // Types
-import { VNode } from 'vue'
+import Vue, { VNode } from 'vue'
+import { PropValidator } from 'vue/types/options'
+import { DatePickerFormatter } from './util/createNativeLocaleFormatter'
+import { PickerType } from './VDate'
 
-export default mixins(
-  PickerButton
-/* @vue/component */
-).extend({
+export default Vue.extend({
   name: 'v-date-picker-title',
 
   props: {
-    date: {
-      type: String,
-      default: ''
-    },
+    dateFormat: Function as PropValidator<DatePickerFormatter>,
+    yearFormat: Function as PropValidator<DatePickerFormatter>,
+    value: [String, Array] as PropValidator<string | string[]>,
     disabled: Boolean,
     readonly: Boolean,
     selectingYear: Boolean,
-    value: {
-      type: String
-    },
-    year: {
-      type: [Number, String],
-      default: ''
-    },
     yearIcon: {
       type: String
     }
@@ -45,6 +32,15 @@ export default mixins(
   computed: {
     computedTransition (): string {
       return this.isReversing ? 'picker-reverse-transition' : 'picker-transition'
+    },
+    date () {
+      return (this.dateFormat as (v: any) => string)(this.value) // TODO: Why does function get string & string[] as type?
+    },
+    year () {
+      return this.yearFormat(Array.isArray(this.value) ? this.value[0] : this.value)
+    },
+    key (): string {
+      return Array.isArray(this.value) ? this.value[0] : this.value
     }
   },
 
@@ -63,10 +59,17 @@ export default mixins(
       }, this.yearIcon)
     },
     getYearBtn (): VNode {
-      return this.genPickerButton('selectingYear', true, [
-        String(this.year),
-        this.yearIcon ? this.genYearIcon() : null
-      ], false, 'v-date-picker-title__year')
+      return genPickerButton(
+        this.$createElement,
+        [
+          String(this.year),
+          this.yearIcon ? this.genYearIcon() : null
+        ],
+        () => this.$emit('update:activePicker', PickerType.Year),
+        this.selectingYear === true,
+        false,
+        'v-date-picker-title__year'
+      )
     },
     genTitleText (): VNode {
       return this.$createElement('transition', {
@@ -76,12 +79,19 @@ export default mixins(
       }, [
         this.$createElement('div', {
           domProps: { innerHTML: this.date || '&nbsp;' },
-          key: this.value
+          key: this.key
         })
       ])
     },
     genTitleDate (): VNode {
-      return this.genPickerButton('selectingYear', false, [this.genTitleText()], false, 'v-date-picker-title__date')
+      return genPickerButton(
+        this.$createElement,
+        [this.genTitleText()],
+        () => this.$emit('update:selectingYear', false),
+        this.selectingYear === false,
+        false,
+        'v-date-picker-title__date'
+      )
     }
   },
 

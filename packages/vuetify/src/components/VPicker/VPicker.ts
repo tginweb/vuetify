@@ -1,9 +1,6 @@
 import './VPicker.sass'
 import '../VCard/VCard.sass'
 
-// Components
-import VPickerBtn from './VPickerBtn'
-
 // Mixins
 import Colorable from '../../mixins/colorable'
 import Themeable from '../../mixins/themeable'
@@ -12,32 +9,18 @@ import Themeable from '../../mixins/themeable'
 import { convertToUnit } from '../../util/helpers'
 
 // Types
-import { VNode, CreateElement, VNodeChildren } from 'vue/types'
+import { VNode } from 'vue/types'
 import mixins from '../../util/mixins'
-
-export function genPickerButton (
-  h: CreateElement,
-  children: VNodeChildren,
-  click: () => void,
-  active: Boolean,
-  readonly = false
-) {
-  return h(VPickerBtn, {
-    props: {
-      active,
-      readonly
-    },
-    on: {
-      click
-    }
-  }, children)
-}
 
 /* @vue/component */
 export default mixins(Colorable, Themeable).extend({
   name: 'v-picker',
 
+  inheritAttrs: false,
+
   props: {
+    headerColor: String,
+    noTitle: Boolean,
     fullWidth: Boolean,
     landscape: Boolean,
     transition: {
@@ -100,9 +83,9 @@ export default mixins(Colorable, Themeable).extend({
         ...this.themeClasses
       }
     }, [
-      this.$slots.title ? this.genTitle() : null,
+      this.$slots.title && !this.noTitle && this.genTitle(),
       this.genBody(),
-      this.$slots.actions ? this.genActions() : null
+      this.$slots.actions && this.genActions()
     ])
   }
 })

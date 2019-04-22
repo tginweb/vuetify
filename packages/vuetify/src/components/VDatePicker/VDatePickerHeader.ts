@@ -17,6 +17,7 @@ import mixins from '../../util/mixins'
 import { VNode } from 'vue'
 import { DatePickerFormatter } from './util/createNativeLocaleFormatter'
 import { PropValidator } from 'vue/types/options'
+import { PickerType } from './VDate'
 
 export default mixins(
   Colorable,
@@ -28,7 +29,8 @@ export default mixins(
 
   props: {
     disabled: Boolean,
-    format: Function as PropValidator<DatePickerFormatter | undefined>,
+    yearFormat: Function as PropValidator<DatePickerFormatter>,
+    monthFormat: Function as PropValidator<DatePickerFormatter>,
     min: String,
     max: String,
     nextIcon: {
@@ -43,7 +45,8 @@ export default mixins(
     value: {
       type: [Number, String],
       required: true
-    }
+    },
+    activePicker: Number as PropValidator<PickerType>
   },
 
   data () {
@@ -53,13 +56,17 @@ export default mixins(
   },
 
   computed: {
+    isMonthPicker (): boolean {
+      return this.activePicker === PickerType.Month
+    },
+    isDatePicker (): boolean {
+      return this.activePicker === PickerType.Date
+    },
     formatter (): DatePickerFormatter {
-      if (this.format) {
-        return this.format
-      } else if (String(this.value).split('-')[1]) {
-        return createNativeLocaleFormatter(this.currentLocale, { month: 'long', year: 'numeric', timeZone: 'UTC' }, { length: 7 })
-      } else {
-        return createNativeLocaleFormatter(this.currentLocale, { year: 'numeric', timeZone: 'UTC' }, { length: 4 })
+      switch (this.activePicker) {
+        case PickerType.Date: return this.monthFormat
+        case PickerType.Month: return this.yearFormat
+        default: return v => v
       }
     }
   },
@@ -86,7 +93,9 @@ export default mixins(
         nativeOn: {
           click: (e: Event) => {
             e.stopPropagation()
-            this.$emit('input', this.calculateChange(change))
+            const newDate = this.calculateChange(change)
+            if (this.isDatePicker) this.$emit('update:month', newDate)
+            else this.$emit('update:year', newDate)
           }
         }
       }, [
@@ -111,7 +120,7 @@ export default mixins(
           type: 'button'
         },
         on: {
-          click: () => this.$emit('toggle')
+          click: () => this.$emit('update:activePicker', this.isDatePicker ? PickerType.Month : PickerType.Year)
         }
       }, [this.$slots.default || this.formatter(String(this.value))])])
 

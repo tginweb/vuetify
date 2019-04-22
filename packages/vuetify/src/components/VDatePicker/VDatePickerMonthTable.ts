@@ -2,24 +2,17 @@
 import DatePickerTable from './mixins/date-picker-table'
 
 // Utils
-import { pad, createNativeLocaleFormatter } from './util'
+import { pad } from './util'
 import mixins from '../../util/mixins'
 
 // Types
 import { VNode } from 'vue'
-import { DatePickerFormatter } from './util/createNativeLocaleFormatter'
 
 export default mixins(
   DatePickerTable
 /* @vue/component */
 ).extend({
   name: 'v-date-picker-month-table',
-
-  computed: {
-    formatter (): DatePickerFormatter {
-      return this.format || createNativeLocaleFormatter(this.currentLocale, { month: 'short', timeZone: 'UTC' }, { start: 5, length: 2 })
-    }
-  },
 
   methods: {
     calculateTableDate (delta: number) {
@@ -37,7 +30,7 @@ export default mixins(
           return this.$createElement('td', {
             key: month
           }, [
-            this.genButton(date, false, 'month', this.formatter)
+            this.genButton(date, false, 'month', this.dateFormat)
           ])
         })
 

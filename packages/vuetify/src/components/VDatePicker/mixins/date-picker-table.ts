@@ -30,9 +30,9 @@ export default mixins(
 
   props: {
     allowedDates: Function as PropValidator<AllowedDateFunction | undefined>,
-    current: String,
+    currentDate: String,
     disabled: Boolean,
-    format: Function as PropValidator<DatePickerFormatter | undefined>,
+    dateFormat: Function as PropValidator<DatePickerFormatter>,
     events: {
       type: [Array, Function, Object],
       default: () => null
@@ -101,7 +101,7 @@ export default mixins(
     genButton (value: string, isFloating: boolean, mouseEventType: string, formatter: DatePickerFormatter) {
       const isAllowed = isDateAllowed(value, this.min, this.max, this.allowedDates)
       const isSelected = value === this.value || (Array.isArray(this.value) && this.value.indexOf(value) !== -1)
-      const isCurrent = value === this.current
+      const isCurrent = value === this.currentDate
       const setColor = isSelected ? this.setBackgroundColor : this.setTextColor
       const color = (isSelected || isCurrent) && (this.color || 'accent')
 
@@ -170,7 +170,7 @@ export default mixins(
     genTable (staticClass: string, children: VNodeChildren, calculateTableDate: CalculateTableDateFunction) {
       const transition = this.$createElement('transition', {
         props: { name: this.computedTransition }
-      }, [this.$createElement('table', { key: this.tableDate }, children)])
+      }, [this.$createElement('table', { key: String(this.tableDate) }, children)])
 
       const touchDirective = {
         name: 'touch',

@@ -7,12 +7,11 @@ import Themeable from '../../mixins/themeable'
 // Types
 import mixins, { ExtractVue } from '../../util/mixins'
 import Vue, { VNode } from 'vue'
-import VPickerBtn from '../VPicker/VPickerBtn'
-import { SelectMode, Time, convert24to12, AllowFunction, getSelectModeName } from './VTime'
+import { SelectMode, Time, convert24to12, getSelectModeName, AllowFunction } from './VTime'
 import { PropValidator } from 'vue/types/options'
 import { pad } from '../VDatePicker/util'
 import { deepEqual, convertToUnit } from '../../util/helpers'
-import { genPickerButton } from '../VPicker/VPicker'
+import { genPickerButton } from '../VPicker'
 
 interface Point {
   x: number
@@ -38,7 +37,7 @@ function angle (center: Point, p1: Point) {
   return Math.abs(value * 180 / Math.PI)
 }
 
-interface AllowedValues {
+interface Allowed {
   hour: AllowFunction
   minute: AllowFunction
   second: AllowFunction
@@ -59,10 +58,10 @@ export default mixins<options &
   name: 'v-time-picker-clock',
 
   props: {
-    allowedValues: {
+    allowed: {
       type: Object,
       default: () => ({ hour: () => true, minute: () => true, second: () => true })
-    } as PropValidator<AllowedValues>,
+    } as PropValidator<Allowed>,
     disabled: Boolean,
     isAmPm: Boolean,
     period: String,
@@ -118,7 +117,7 @@ export default mixins<options &
     degrees (): number {
       return this.degreesPerUnit * Math.PI / 180
     },
-    value (): number {
+    value (): number | null {
       let value = null
       switch (this.internalSelectMode) {
         case SelectMode.Hour: value = this.time.hour; break
@@ -126,7 +125,7 @@ export default mixins<options &
         case SelectMode.Second: value = this.time.second; break
       }
 
-      return value === null ? this.min : value
+      return value
     },
     innerRadiusScale (): number {
       return 0.62
@@ -153,7 +152,7 @@ export default mixins<options &
       e.preventDefault()
 
       const delta = Math.sign(-e.deltaY || 1)
-      let value = this.value
+      let value = this.value || 0
       do {
         value = value + delta
         value = (value - this.min + this.unitCount) % this.unitCount + this.min
@@ -171,9 +170,9 @@ export default mixins<options &
     },
     isAllowed (value: number): boolean {
       switch (this.internalSelectMode) {
-        case SelectMode.Hour: return !this.allowedValues.hour || this.allowedValues.hour(value)
-        case SelectMode.Minute: return !this.allowedValues.minute || this.allowedValues.minute(value)
-        case SelectMode.Second: return !this.allowedValues.second || this.allowedValues.second(value)
+        case SelectMode.Hour: return !this.allowed.hour || this.allowed.hour(value)
+        case SelectMode.Minute: return !this.allowed.minute || this.allowed.minute(value)
+        case SelectMode.Second: return !this.allowed.second || this.allowed.second(value)
       }
     },
     genValues () {
@@ -185,7 +184,7 @@ export default mixins<options &
         children.push(this.$createElement('span', this.setBackgroundColor(color, {
           staticClass: 'v-time-picker-clock__item',
           'class': {
-            'v-time-picker-clock__item--active': value === this.value,
+            'v-time-picker-clock__item--active': value === (this.value || 0),
             'v-time-picker-clock__item--disabled': this.disabled || !this.isAllowed(value)
           },
           style: this.getTransform(value),
@@ -196,13 +195,14 @@ export default mixins<options &
       return children
     },
     genHand (): VNode {
-      const scale = `scaleY(${this.handScale(this.value)})`
-      const angle = this.rotate + this.degreesPerUnit * (this.value - this.min)
+      const value = this.value || 0
+      const scale = `scaleY(${this.handScale(value)})`
+      const angle = this.rotate + this.degreesPerUnit * (value - this.min)
       const color = (this.value !== null) && (this.color || 'accent')
       return this.$createElement('div', this.setBackgroundColor(color, {
         staticClass: 'v-time-picker-clock__hand',
         'class': {
-          'v-time-picker-clock__hand--inner': this.isInner(this.value)
+          'v-time-picker-clock__hand--inner': this.isInner(value)
         },
         style: {
           transform: `rotate(${angle}deg) ${scale}`
@@ -276,8 +276,6 @@ export default mixins<options &
         case SelectMode.Second: time.second = value; break
       }
 
-      time.period = (time.hour === null || time.hour < 12) ? 'am' : 'pm'
-
       if (deepEqual(this.time, time)) return
 
       this.$emit('update:time', time)
@@ -313,31 +311,20 @@ export default mixins<options &
         ])
       ])
     },
-    genPickerButton (period: string): VNode {
-      return this.$createElement(VPickerBtn, {
-        props: {
-          active: this.time.period === period,
-          readonly: this.disabled || this.readonly
-        },
-        on: {
-          click: () => this.$emit('update:time', { ...this.time, period })
-        }
-      }, [period.toUpperCase()])
-    },
     genClockAmPm () {
       return this.$createElement('div', this.setTextColor(this.color || 'primary', {
         staticClass: 'v-time-picker-clock__ampm'
       }), [
         genPickerButton(
           this.$createElement,
-          'am',
+          'AM',
           () => this.$emit('update:period', 'am'),
           this.period === 'am',
           this.disabled || this.readonly
         ),
         genPickerButton(
           this.$createElement,
-          'pm',
+          'PM',
           () => this.$emit('update:period', 'pm'),
           this.period === 'pm',
           this.disabled || this.readonly

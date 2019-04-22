@@ -1,24 +1,9 @@
-// Components
-import VPicker from '../VPicker'
-import VTimePickerTitle from './VTimePickerTitle'
-import VTimePickerClock from './VTimePickerClock'
-
-// Mixins
-import Colorable from '../../mixins/colorable'
-import Themeable from '../../mixins/themeable'
-
 // Utils
-import { createRange } from '../../util/helpers'
 import pad from '../VDatePicker/util/pad'
 
 // Types
 import Vue, { VNode } from 'vue'
 import { PropValidator } from 'vue/types/options'
-
-const rangeHours24 = createRange(24)
-const rangeHours12am = createRange(12)
-const rangeHours12pm = rangeHours12am.map(v => v + 12)
-const range60 = createRange(60)
 
 enum SelectMode {
   Hour = 1,
@@ -33,6 +18,12 @@ export { SelectMode, getSelectModeName }
 
 export type Period = 'am' | 'pm'
 export type AllowFunction = (val: number) => boolean
+
+interface Allowed {
+  hour: AllowFunction | number[]
+  minute: AllowFunction | number[]
+  second: AllowFunction | number[]
+}
 
 export interface Time {
   hour: number | null
@@ -78,15 +69,10 @@ export default Vue.extend({
   name: 'v-time',
 
   props: {
-    allowedHours: {
-      type: [ Function, Array ]
-    } as PropValidator<AllowFunction | number[]>,
-    allowedMinutes: {
-      type: [ Function, Array ]
-    } as PropValidator<AllowFunction | number[]>,
-    allowedSeconds: {
-      type: [ Function, Array ]
-    } as PropValidator<AllowFunction | number[]>,
+    allowed: {
+      type: Object,
+      default: () => ({ hour: () => true, minute: () => true, second: () => true })
+    } as PropValidator<Allowed>,
     format: {
       type: String,
       default: 'ampm',
@@ -96,20 +82,18 @@ export default Vue.extend({
     } as PropValidator<'ampm' | '24hr'>,
     min: String,
     max: String,
-    value: null as any as PropValidator<any>
+    value: {
+      type: String,
+      default: () => null
+    },
+    useSeconds: Boolean
   },
 
   data () {
     return {
-      inputHour: null as number | null,
-      inputMinute: null as number | null,
-      inputSecond: null as number | null,
-      lazyInputHour: null as number | null,
-      lazyInputMinute: null as number | null,
-      lazyInputSecond: null as number | null,
       period: 'am' as Period,
       selectMode: SelectMode.Hour,
-      time: parseTime(null)
+      internalTime: parseTime(this.value)
     }
   },
 
@@ -117,10 +101,12 @@ export default Vue.extend({
     isAllowedHourCb (): AllowFunction {
       let cb: AllowFunction
 
-      if (this.allowedHours instanceof Array) {
-        cb = (val: number) => (this.allowedHours as number[]).includes(val)
+      if (!this.allowed.hour) {
+        cb = () => true
+      } else if (this.allowed.hour instanceof Array) {
+        cb = (val: number) => (this.allowed.hour as number[]).includes(val)
       } else {
-        cb = this.allowedHours
+        cb = this.allowed.hour
       }
 
       if (!this.min && !this.max) return cb
@@ -137,11 +123,13 @@ export default Vue.extend({
     isAllowedMinuteCb (): AllowFunction {
       let cb: AllowFunction
 
-      const isHourAllowed = !this.isAllowedHourCb || this.inputHour === null || this.isAllowedHourCb(this.inputHour)
-      if (this.allowedMinutes instanceof Array) {
-        cb = (val: number) => (this.allowedMinutes as number[]).includes(val)
+      const isHourAllowed = !this.isAllowedHourCb || this.internalTime.hour === null || this.isAllowedHourCb(this.internalTime.hour)
+      if (!this.allowed.minute) {
+        cb = () => true
+      } else if (this.allowed.minute instanceof Array) {
+        cb = (val: number) => (this.allowed.minute as number[]).includes(val)
       } else {
-        cb = this.allowedMinutes
+        cb = this.allowed.minute
       }
 
       if (!this.min && !this.max) {
@@ -154,7 +142,7 @@ export default Vue.extend({
       const maxTime = maxHour * 60 + maxMinute * 1
 
       return (val: number) => {
-        const time = 60 * this.inputHour! + val
+        const time = 60 * this.internalTime.hour! + val
         return time >= minTime &&
           time <= maxTime &&
           isHourAllowed &&
@@ -164,17 +152,19 @@ export default Vue.extend({
     isAllowedSecondCb (): AllowFunction {
       let cb: AllowFunction
 
-      const isHourAllowed = !this.isAllowedHourCb || this.inputHour === null || this.isAllowedHourCb(this.inputHour)
+      const isHourAllowed = !this.isAllowedHourCb || this.internalTime.hour === null || this.isAllowedHourCb(this.internalTime.hour)
       const isMinuteAllowed = isHourAllowed &&
         (!this.isAllowedMinuteCb ||
-          this.inputMinute === null ||
-          this.isAllowedMinuteCb(this.inputMinute)
+          this.internalTime.minute === null ||
+          this.isAllowedMinuteCb(this.internalTime.minute)
         )
 
-      if (this.allowedSeconds instanceof Array) {
-        cb = (val: number) => (this.allowedSeconds as number[]).includes(val)
+      if (!this.allowed.second) {
+        cb = () => true
+      } else if (this.allowed.second instanceof Array) {
+        cb = (val: number) => (this.allowed.second as number[]).includes(val)
       } else {
-        cb = this.allowedSeconds
+        cb = this.allowed.second
       }
 
       if (!this.min && !this.max) {
@@ -187,7 +177,7 @@ export default Vue.extend({
       const maxTime = maxHour * 3600 + maxMinute * 60 + (maxSecond || 0) * 1
 
       return (val: number) => {
-        const time = 3600 * this.inputHour! + 60 * this.inputMinute! + val
+        const time = 3600 * this.internalTime.hour! + 60 * this.internalTime.minute! + val
         return time >= minTime &&
           time <= maxTime &&
           isMinuteAllowed &&
@@ -199,106 +189,53 @@ export default Vue.extend({
     },
     scopedSlotProps (): any {
       return {
-        allowedValues: {
+        allowed: {
           hour: this.isAllowedHourCb,
           minute: this.isAllowedMinuteCb,
           second: this.isAllowedSecondCb
         },
         format: this.format,
         isAmPm: this.isAmPm,
-        time: this.time,
-        period: this.period
+        time: this.internalTime,
+        period: this.period,
+        selectMode: this.selectMode,
+        setPeriod: this.setPeriod,
+        setTime: this.setTime,
+        setSelectMode: this.setSelectMode
       }
+    },
+    timeAsString (): string | null {
+      const { hour, minute, second } = this.internalTime
+      if (hour != null && minute != null && (!this.useSeconds || second != null)) {
+        return `${pad(hour)}:${pad(minute)}` + (this.useSeconds ? `:${pad(second!)}` : '')
+      }
+
+      return null
     }
   },
 
   watch: {
-    value: 'setInputData'
-  },
-
-  mounted () {
-    this.setInputData(this.value)
-    // this.$on('update:period', this.setPeriod)
-  },
-
-  methods: {
-    genValue () {
-      if (this.inputHour != null && this.inputMinute != null && (!this.useSeconds || this.inputSecond != null)) {
-        return `${pad(this.inputHour)}:${pad(this.inputMinute)}` + (this.useSeconds ? `:${pad(this.inputSecond!)}` : '')
-      }
-
-      return null
+    value (value: string | null | Date) {
+      this.internalTime = parseTime(value)
     },
-    emitValue () {
-      const value = this.genValue()
-      if (value !== null) this.$emit('input', value)
+    timeAsString (v: string | null) {
+      if (v != null) this.$emit('input', v)
     },
-    setPeriod (period: Period) {
-      this.period = period
-      if (this.inputHour != null) {
-        const newHour = this.inputHour! + (period === 'am' ? -12 : 12)
-        this.inputHour = this.firstAllowed('hour', newHour)
-        this.emitValue()
-      }
+    period (v: Period) {
+      this.$emit('update:period', v)
     },
-    setInputData (value: string | null | Date) {
-      this.time = parseTime(value)
-    },
-    onInput (value: number) {
-      if (this.selectMode === SelectMode.Hour) {
-        this.inputHour = this.isAmPm ? convert12to24(value, this.period) : value
-      } else if (this.selectMode === SelectMode.Minute) {
-        this.inputMinute = value
-      } else {
-        this.inputSecond = value
-      }
-      this.emitValue()
-    },
-    onChange (value: number) {
-      this.$emit(`click:${selectingNames[this.selectMode]}`, value)
-
-      const emitChange = this.selectMode === (this.useSeconds ? SelectMode.Second : SelectMode.Minute)
-
-      if (this.selectMode === SelectMode.Hour) {
-        this.selectMode = SelectMode.Minute
-      } else if (this.useSeconds && this.selectMode === SelectMode.Minute) {
-        this.selectMode = SelectMode.Second
-      }
-
-      if (this.inputHour === this.lazyInputHour &&
-        this.inputMinute === this.lazyInputMinute &&
-        (!this.useSeconds || this.inputSecond === this.lazyInputSecond)
-      ) return
-
-      const time = this.genValue()
-      if (time === null) return
-
-      this.lazyInputHour = this.inputHour
-      this.lazyInputMinute = this.inputMinute
-      this.useSeconds && (this.lazyInputSecond = this.inputSecond)
-
-      emitChange && this.$emit('change', time)
-    },
-    firstAllowed (type: 'hour' | 'minute' | 'second', value: number) {
-      const allowedFn = type === 'hour' ? this.isAllowedHourCb : (type === 'minute' ? this.isAllowedMinuteCb : this.isAllowedSecondCb)
-      if (!allowedFn) return value
-
-      // TODO: clean up
-      const range = type === 'minute'
-        ? range60
-        : (type === 'second'
-          ? range60
-          : (this.isAmPm
-            ? (value < 12
-              ? rangeHours12am
-              : rangeHours12pm)
-            : rangeHours24))
-      const first = range.find(v => allowedFn((v + value) % range.length + range[0]))
-      return ((first || 0) + value) % range.length + range[0]
+    selectMode (v: SelectMode) {
+      this.$emit('update:selectMode', v)
     }
   },
 
-  render (h): VNode {
+  methods: {
+    setPeriod (p: Period) { this.period = p },
+    setTime (t: Time) { this.internalTime = t },
+    setSelectMode (m: SelectMode) { this.selectMode = m }
+  },
+
+  render (): VNode {
     return this.$scopedSlots.default!(this.scopedSlotProps) as any
   }
 })

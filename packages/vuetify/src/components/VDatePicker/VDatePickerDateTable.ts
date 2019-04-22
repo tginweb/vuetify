@@ -22,22 +22,16 @@ export default mixins(
       type: [String, Number],
       default: 0
     },
-    showWeek: Boolean,
-    weekdayFormat: Function as PropValidator<DatePickerFormatter | undefined>
+    showWeekNumbers: Boolean,
+    weekdayFormat: Function as PropValidator<DatePickerFormatter>
   },
 
   computed: {
-    formatter (): DatePickerFormatter {
-      return this.format || createNativeLocaleFormatter(this.currentLocale, { day: 'numeric', timeZone: 'UTC' }, { start: 8, length: 2 })
-    },
-    weekdayFormatter (): DatePickerFormatter | undefined {
-      return this.weekdayFormat || createNativeLocaleFormatter(this.currentLocale, { weekday: 'narrow', timeZone: 'UTC' })
-    },
     weekDays (): string[] {
       const first = parseInt(this.firstDayOfWeek, 10)
 
-      return this.weekdayFormatter
-        ? createRange(7).map(i => this.weekdayFormatter!(`2017-01-${first + i + 15}`)) // 2017-01-15 is Sunday
+      return this.weekdayFormat
+        ? createRange(7).map(i => this.weekdayFormat(`2017-01-${first + i + 15}`)) // 2017-01-15 is Sunday
         : createRange(7).map(i => ['S', 'M', 'T', 'W', 'T', 'F', 'S'][(i + first) % 7])
     }
   },
@@ -48,7 +42,7 @@ export default mixins(
     },
     genTHead () {
       const days = this.weekDays.map(day => this.$createElement('th', day))
-      this.showWeek && days.unshift(this.$createElement('th'))
+      this.showWeekNumbers && days.unshift(this.$createElement('th'))
       return this.$createElement('thead', this.genTR(days))
     },
     // Returns number of the days from the firstDayOfWeek to the first day of the current month
@@ -87,20 +81,20 @@ export default mixins(
       let day = this.weekDaysBeforeFirstDayOfTheMonth()
       let weekNumber = this.getWeekNumber()
 
-      this.showWeek && rows.push(this.genWeekNumber(weekNumber++))
+      this.showWeekNumbers && rows.push(this.genWeekNumber(weekNumber++))
 
       while (day--) rows.push(this.$createElement('td'))
       for (day = 1; day <= daysInMonth; day++) {
         const date = `${this.displayedYear}-${pad(this.displayedMonth + 1)}-${pad(day)}`
 
         rows.push(this.$createElement('td', [
-          this.genButton(date, true, 'date', this.formatter)
+          this.genButton(date, true, 'date', this.dateFormat)
         ]))
 
-        if (rows.length % (this.showWeek ? 8 : 7) === 0) {
+        if (rows.length % (this.showWeekNumbers ? 8 : 7) === 0) {
           children.push(this.genTR(rows))
           rows = []
-          day < daysInMonth && this.showWeek && rows.push(this.genWeekNumber(weekNumber++))
+          day < daysInMonth && this.showWeekNumbers && rows.push(this.genWeekNumber(weekNumber++))
         }
       }
 

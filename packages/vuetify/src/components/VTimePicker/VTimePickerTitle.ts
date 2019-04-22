@@ -2,7 +2,7 @@ import './VTimePickerTitle.sass'
 
 // Utils
 import { pad } from '../VDatePicker/util'
-import { genPickerButton } from '../VPicker/VPicker'
+import { genPickerButton } from '../VPicker'
 
 import { PropValidator } from 'vue/types/options'
 import Vue, { VNode } from 'vue'
@@ -12,11 +12,8 @@ export default Vue.extend({
   name: 'v-time-picker-title',
 
   props: {
-    ampm: Boolean,
+    isAmPm: Boolean,
     disabled: Boolean,
-    hour: Number,
-    minute: Number,
-    second: Number,
     period: {
       type: String,
       validator: period => period === 'am' || period === 'pm'
@@ -29,13 +26,13 @@ export default Vue.extend({
 
   methods: {
     genTime () {
-      let hour = this.hour
-      if (this.ampm) {
-        hour = hour ? ((hour - 1) % 12 + 1) : 12
+      let hour = this.time ? this.time.hour : null
+      if (hour != null && this.isAmPm) {
+        hour = (hour - 1) % 12 + 1
       }
 
-      const displayedHour = this.hour == null ? '--' : this.ampm ? String(hour) : pad(hour)
-      const displayedMinute = this.minute == null ? '--' : pad(this.minute)
+      const displayedHour = hour == null ? '--' : this.isAmPm ? String(hour) : pad(hour)
+      const displayedMinute = this.time && this.time.minute != null ? pad(this.time.minute) : '--'
       const titleContent = [
         genPickerButton(
           this.$createElement,
@@ -55,7 +52,7 @@ export default Vue.extend({
       ]
 
       if (this.useSeconds) {
-        const displayedSecond = this.second == null ? '--' : pad(this.second)
+        const displayedSecond = this.time.second == null ? '--' : pad(this.time.second)
         titleContent.push(this.$createElement('span', ':'))
         titleContent.push(genPickerButton(
           this.$createElement,
@@ -94,7 +91,7 @@ export default Vue.extend({
   render (h): VNode {
     const children = [this.genTime()]
 
-    this.ampm && children.push(this.genAmPm())
+    this.isAmPm && children.push(this.genAmPm())
 
     return h('div', {
       staticClass: 'v-time-picker-title'

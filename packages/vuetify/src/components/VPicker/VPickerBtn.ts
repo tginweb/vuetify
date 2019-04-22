@@ -1,4 +1,4 @@
-import Vue, { VNode, CreateElement, VNodeChildren } from 'vue'
+import Vue, { VNode } from 'vue'
 import { wrapInArray } from '../../util/helpers'
 
 export default Vue.extend({
@@ -17,7 +17,6 @@ export default Vue.extend({
     const click = (event: Event) => {
       event.stopPropagation()
       if (data.on && data.on.click) wrapInArray(data.on.click).forEach(f => f())
-      // data.on
     }
 
     const staticClass = ['v-picker__title__btn', data.staticClass].filter(v => !!v).join(' ')
