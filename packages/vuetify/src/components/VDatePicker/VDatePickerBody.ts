@@ -45,7 +45,7 @@ export default mixins(
     scrollable: Boolean,
 
     showWeekNumbers: Boolean,
-    showCurrentDate: Boolean,
+    hideCurrentDate: Boolean,
     firstDayOfWeek: {
       type: [String, Number],
       default: 0
@@ -65,7 +65,7 @@ export default mixins(
     pickerDate: String,
     value: [String, Array] as PropValidator<string | string[]>,
 
-    type: Number as PropValidator<PickerType>
+    activePicker: Number as PropValidator<PickerType>
   },
 
   data () {
@@ -75,11 +75,11 @@ export default mixins(
   },
 
   computed: {
-    isDateType (): boolean {
-      return this.type === PickerType.Date
+    isDatePicker (): boolean {
+      return this.activePicker === PickerType.Date
     },
-    isMonthType (): boolean {
-      return this.type === PickerType.Month
+    isMonthPicker (): boolean {
+      return this.activePicker === PickerType.Month
     },
     currentDate (): string | null {
       return sanitizeDateString(`${this.now.getFullYear()}-${this.now.getMonth() + 1}-${this.now.getDate()}`, 'date')
@@ -88,7 +88,7 @@ export default mixins(
       return sanitizeDateString(`${this.now.getFullYear()}-${this.now.getMonth() + 1}-${this.now.getDate()}`, 'month')
     },
     selectedMonths (): string | string[] | undefined {
-      if (!this.value || !this.value.length || this.type === 'month') {
+      if (!this.value || !this.value.length || this.activePicker === PickerType.Month) {
         return this.value
       } else if (this.multiple) {
         return (this.value as string[]).map(val => val.substr(0, 7))
@@ -110,12 +110,11 @@ export default mixins(
           monthFormat: this.formatters.headerMonth,
           light: this.light,
           locale: this.locale,
-          min: this.isDateType ? this.minMonth : this.minYear,
-          max: this.isDateType ? this.maxMonth : this.maxYear,
+          min: this.isDatePicker ? this.minMonth : this.minYear,
+          max: this.isDatePicker ? this.maxMonth : this.maxYear,
           prevIcon: this.prevIcon,
           readonly: this.readonly,
-          activePicker: this.type,
-          // value: this.isDateType ? `${pad(this.tableYear, 4)}-${pad(this.tableMonth + 1)}` : `${pad(this.tableYear, 4)}`
+          activePicker: this.activePicker,
           value: this.tableDate
         },
         on: {
@@ -130,7 +129,7 @@ export default mixins(
         props: {
           allowedDates: this.allowedDates,
           color: this.color,
-          currentDate: this.currentDate,
+          currentDate: !this.hideCurrentDate ? this.currentDate : null,
           dark: this.dark,
           disabled: this.disabled,
           events: this.events,
@@ -216,7 +215,7 @@ export default mixins(
   render (h): VNode {
     let children: VNodeChildren = []
 
-    switch (this.type) {
+    switch (this.activePicker) {
       case PickerType.Year: children = [this.genYears()]; break
       case PickerType.Month: children = this.genMonths(); break
       case PickerType.Date: children = this.genDates(); break

@@ -23,6 +23,7 @@ type DatePickerMultipleFormatter = (date: string[]) => string
 export interface VDateFormatters {
   year: DatePickerFormatter
   titleDate: DatePickerFormatter | DatePickerMultipleFormatter
+  landscapeTitleDate: DatePickerFormatter | DatePickerMultipleFormatter
   headerDate: DatePickerFormatter
   headerMonth: DatePickerFormatter
   date: DatePickerFormatter
@@ -70,20 +71,12 @@ export default mixins(
     multiple: Boolean,
     pickerDate: String,
     reactive: Boolean,
-    showCurrent: {
-      type: [Boolean, String],
-      default: true
-    },
     type: {
       type: String,
       default: 'date',
       validator: (type: any) => PickerTypeNames.includes(type) // TODO: year
     } as any as PropValidator<DatePickerType>,
-    value: [Array, String] as PropValidator<DatePickerValue>,
-    // Function formatting currently selected date in the picker title
-    titleDateFormat: Function as PropValidator<DatePickerFormatter | DatePickerMultipleFormatter | undefined>,
-    // Function formatting the year in table header and pickup title
-    yearFormat: Function as PropValidator<DatePickerFormatter | undefined>
+    value: [Array, String] as PropValidator<DatePickerValue>
   },
 
   data () {
@@ -154,6 +147,7 @@ export default mixins(
       return {
         year: this.formatters.year || createNativeLocaleFormatter(this.currentLocale, { year: 'numeric', timeZone: 'UTC' }, { length: 4 }),
         titleDate: this.formatters.titleDate || (this.multiple ? this.defaultTitleMultipleDateFormatter : this.defaultTitleDateFormatter),
+        landscapeTitleDate: this.formatters.landscapeTitleDate || this.defaultLandscapeTitleDate,
         weekday: this.formatters.weekday || createNativeLocaleFormatter(this.currentLocale, { weekday: 'narrow', timeZone: 'UTC' }) || (v => v),
         date: this.formatters.date || createNativeLocaleFormatter(this.currentLocale, { day: 'numeric', timeZone: 'UTC' }, { start: 8, length: 2 }) || (v => v),
         headerMonth: this.formatters.headerMonth || createNativeLocaleFormatter(this.currentLocale, { month: 'long', year: 'numeric', timeZone: 'UTC' }, { length: 7 }),
@@ -180,11 +174,12 @@ export default mixins(
         length: getSubstrOption(this.type)
       })
 
-      const landscapeFormatter = (date: string) => titleDateFormatter(date)
+      return titleDateFormatter
+    },
+    defaultLandscapeTitleDate (): DatePickerFormatter {
+      return (date: string) => this.defaultTitleDateFormatter(date)
         .replace(/([^\d\s])([\d])/g, (match, nonDigit, digit) => `${nonDigit} ${digit}`)
         .replace(', ', ',<br>')
-
-      return this.landscape ? landscapeFormatter : titleDateFormatter
     },
     scopedSlotProps (): any {
       return {
@@ -193,7 +188,7 @@ export default mixins(
         yearClick: this.yearClick,
         formatters: this.computedFormatters,
         value: this.value,
-        type: this.activePicker,
+        activePicker: this.activePicker,
         updateActivePicker: this.updateActivePicker,
         pickerDate: this.pickerDate,
         tableDate: this.tableDate,
@@ -284,7 +279,8 @@ export default mixins(
       if (this.type === 'month') {
         this.tableDate = `${value}`
       } else {
-        this.tableDate = `${value}-${pad((this.tableMonth || 0) + 1)}`
+        console.log('here', this.tableMonth)
+        this.tableDate = `${value}-${pad((parseInt(this.tableMonth) || 0) + 1)}`
       }
       this.activePicker = PickerType.Month
       // if (this.reactive && !this.readonly && !this.multiple && this.isDateAllowed(this.inputDate)) {

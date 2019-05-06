@@ -1,5 +1,4 @@
 .v-date-time-picker
-  max-width: 290px
   align-self: flex-start
 
   .v-picker__title
@@ -12,3 +11,16 @@
   flex-direction: row
   justify-content: space-between
   padding: 8px
+
+  .v-time-picker-title__time > *
+    font-size: 40px !important
+    align-items: flex-end !important
+
+.v-date-time-picker .v-picker__title--landscape
+  justify-content: space-between
+
+  .v-date-time-picker__headers
+    flex-direction: column
+
+  .v-tabs
+    flex-grow: 0

@@ -1,38 +1,20 @@
 // Components
 import VDatePickerTitle from './VDatePickerTitle'
-import VDatePickerHeader from './VDatePickerHeader'
-import VDatePickerDateTable from './VDatePickerDateTable'
-import VDatePickerMonthTable from './VDatePickerMonthTable'
-import VDatePickerYears from './VDatePickerYears'
+import VDatePickerBody from './VDatePickerBody'
 
 // Mixins
 import Localable from '../../mixins/localable'
 
-// Utils
-import { pad, createNativeLocaleFormatter } from './util'
-import isDateAllowed, { AllowedDateFunction } from './util/isDateAllowed'
-import { consoleWarn } from '../../util/console'
-import { daysInMonth } from '../VCalendar/util/timestamp'
-import mixins from '../../util/mixins'
-
 // Types
 import { PropValidator } from 'vue/types/options'
-import { DatePickerFormatter } from './util/createNativeLocaleFormatter'
 import Vue, { VNode } from 'vue'
 import VPicker from '../VPicker'
 import VDate, { PickerType } from './VDate'
-import VDatePickerBody from './VDatePickerBody'
 
 export type DateEventColorValue = string | string[]
 export type DateEvents = string[] | ((date: string) => boolean | DateEventColorValue) | Record<string, DateEventColorValue>
 export type DateEventColors = DateEventColorValue | Record<string, DateEventColorValue> | ((date: string) => DateEventColorValue)
 type DatePickerValue = string | string[] | undefined
-type DatePickerType = 'date' | 'month'
-type DatePickerMultipleFormatter = (date: string[]) => string
-interface Formatters {
-  year: DatePickerFormatter
-  titleDate: DatePickerFormatter | DatePickerMultipleFormatter
-}
 
 export const VDatePickerProps = {
   disabled: Boolean,
@@ -45,14 +27,11 @@ export const VDatePickerProps = {
     type: String,
     default: '$vuetify.icons.prev'
   },
+  hideCurrentDate: Boolean,
   reactive: Boolean,
   readonly: Boolean,
   scrollable: Boolean,
-  showCurrent: {
-    type: [Boolean, String],
-    default: true
-  },
-  showWeek: Boolean,
+  showWeekNumbers: Boolean,
   value: [Array, String] as PropValidator<DatePickerValue>,
   yearIcon: String
 }

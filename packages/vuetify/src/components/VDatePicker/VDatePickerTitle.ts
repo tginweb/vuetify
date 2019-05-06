@@ -13,6 +13,8 @@ import { PickerType } from './VDate'
 export default Vue.extend({
   name: 'v-date-picker-title',
 
+  inheritAttrs: false,
+
   props: {
     dateFormat: Function as PropValidator<DatePickerFormatter>,
     yearFormat: Function as PropValidator<DatePickerFormatter>,
@@ -20,6 +22,7 @@ export default Vue.extend({
     disabled: Boolean,
     readonly: Boolean,
     selectingYear: Boolean,
+    landscape: Boolean,
     yearIcon: {
       type: String
     }
@@ -33,10 +36,10 @@ export default Vue.extend({
     computedTransition (): string {
       return this.isReversing ? 'picker-reverse-transition' : 'picker-transition'
     },
-    date () {
+    date (): string {
       return (this.dateFormat as (v: any) => string)(this.value) // TODO: Why does function get string & string[] as type?
     },
-    year () {
+    year (): string {
       return this.yearFormat(Array.isArray(this.value) ? this.value[0] : this.value)
     },
     key (): string {
@@ -87,7 +90,7 @@ export default Vue.extend({
       return genPickerButton(
         this.$createElement,
         [this.genTitleText()],
-        () => this.$emit('update:selectingYear', false),
+        () => this.$emit('update:activePicker', PickerType.Date),
         this.selectingYear === false,
         false,
         'v-date-picker-title__date'

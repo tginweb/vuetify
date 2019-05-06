@@ -27,6 +27,8 @@ export default mixins(
 ).extend({
   name: 'v-date-picker-header',
 
+  inheritAttrs: false,
+
   props: {
     disabled: Boolean,
     yearFormat: Function as PropValidator<DatePickerFormatter>,
@@ -112,6 +114,7 @@ export default mixins(
       }
     },
     genHeader () {
+      console.log(this.value)
       const color = !this.disabled && (this.color || 'accent')
       const header = this.$createElement('div', this.setTextColor(color, {
         key: String(this.value)

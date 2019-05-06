@@ -11,6 +11,8 @@ import { Time, SelectMode } from './VTime'
 export default Vue.extend({
   name: 'v-time-picker-title',
 
+  inheritAttrs: false,
+
   props: {
     isAmPm: Boolean,
     disabled: Boolean,

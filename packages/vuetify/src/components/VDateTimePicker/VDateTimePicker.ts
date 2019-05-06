@@ -8,6 +8,8 @@ import Vue, { VNode } from 'vue'
 import VPicker from '../VPicker'
 import { VTabs, VTab, VTabsItems, VTabItem } from '../VTabs'
 import VTime, { Period, Time, SelectMode } from '../VTimePicker/VTime'
+import VDate, { PickerType } from '../VDatePicker/VDate'
+import VDatePickerBody from '../VDatePicker/VDatePickerBody'
 
 // Mixins
 import { VDatePickerTitle } from '../VDatePicker'
@@ -24,19 +26,24 @@ export default Vue.extend({
     ...Themeable.options.props,
     disabled: Boolean,
     readonly: Boolean,
-    clockProps: {
+    timeProps: {
       type: Object,
       default: () => ({
         scrollable: false,
         showAmPmInTitle: false
       })
+    },
+    dateProps: {
+      type: Object,
+      default: () => ({})
     }
   },
 
   data: () => ({
-    mode: 1,
+    mode: 0,
     date: '2019-04-01',
-    scopedClockProps: null
+    scopedTimeProps: null,
+    scopedDateProps: null
   }),
 
   methods: {
@@ -60,38 +67,83 @@ export default Vue.extend({
       }, tabs)
     },
     genHeaders () {
-      const v = this.scopedClockProps || {} as any
+      const timeProps = this.scopedTimeProps || {} as any
+      // TODO: We need some sane defaults here because
+      // scoped data props are not available on first render
+      const dateProps = this.scopedDateProps || {
+        formatters: {
+          year: (v: string) => v,
+          titleDate: (v: string) => v,
+          landscapeTitleDate: (v: string) => v,
+          headerDate: (v: string) => v
+        },
+        updateActivePicker: () => {}
+      } as any
 
       return this.$createElement('div', {
         staticClass: 'v-date-time-picker__headers'
       }, [
         this.$createElement(VDatePickerTitle, {
           props: {
-            date: 'Apr 17'
+            value: dateProps.value,
+            disabled: this.disabled,
+            readonly: this.readonly,
+            yearIcon: this.dateProps.yearIcon,
+            selectingYear: dateProps.type === PickerType.Year,
+            dateFormat: this.landscape ? dateProps.formatters.landscapeTitleDate : dateProps.formatters.titleDate,
+            yearFormat: dateProps.formatters.year
+          },
+          on: {
+            'update:activePicker': dateProps.updateActivePicker
           }
         }),
         this.$createElement(VTimePickerTitle, {
           props: {
-            isAmPm: this.clockProps.showAmPmInTitle && v.isAmPm,
+            isAmPm: this.timeProps.showAmPmInTitle && timeProps.isAmPm,
             disabled: this.disabled,
-            time: v.time,
-            period: v.period,
+            time: timeProps.time,
+            period: timeProps.period,
             readonly: this.readonly,
-            useSeconds: v.useSeconds,
-            selectMode: v.selectMode
+            useSeconds: timeProps.useSeconds,
+            selectMode: timeProps.selectMode
           },
           on: {
-            'update:selectMode': (m: SelectMode) => v.setSelectMode(m),
-            'update:period': (p: Period) => v.setPeriod(p)
+            'update:selectMode': (m: SelectMode) => timeProps.setSelectMode(m),
+            'update:period': (p: Period) => timeProps.setPeriod(p)
           }
         })
       ])
     },
     genDatePicker () {
-      return this.$createElement('div')
+      return this.$createElement(VDate, {
+        props: {
+          ...this.dateProps,
+          value: this.date
+        },
+        on: {
+          input: (date: string) => this.date = date
+        },
+        scopedSlots: {
+          default: (props: any) => {
+            this.scopedDateProps = props
+            return this.$createElement(VDatePickerBody, {
+              props: {
+                ...this.dateProps,
+                ...props
+              },
+              on: {
+                'update:year': props.yearClick,
+                'update:month': props.monthClick,
+                'update:date': props.dateClick,
+                'update:activePicker': props.updateActivePicker
+              }
+            })
+          }
+        }
+      })
     },
     genClock (v: any) {
-      this.scopedClockProps = v
+      this.scopedTimeProps = v
 
       return this.$createElement(VTimePickerClock, {
         props: {
@@ -102,8 +154,8 @@ export default Vue.extend({
           isAmPm: v.isAmPm,
           light: this.light,
           readonly: this.readonly,
-          scrollable: this.clockProps.scrollable,
-          showAmPm: !this.clockProps.showAmPmInTitle && v.isAmPm,
+          scrollable: this.timeProps.scrollable,
+          showAmPm: !this.timeProps.showAmPmInTitle && v.isAmPm,
           selectMode: v.selectMode,
           time: v.time,
           period: v.period,
@@ -118,7 +170,7 @@ export default Vue.extend({
     },
     genTimePicker () {
       return this.$createElement(VTime, {
-        props: this.clockProps,
+        props: this.timeProps,
         scopedSlots: {
           default: (v: any) => this.genClock(v)
         }
@@ -130,8 +182,8 @@ export default Vue.extend({
           value: this.mode
         }
       }, [
-        this.$createElement(VTabItem, [this.genDatePicker()]),
-        this.$createElement(VTabItem, [this.genTimePicker()])
+        this.$createElement(VTabItem, { props: { eager: true } }, [this.genDatePicker()]),
+        this.$createElement(VTabItem, { props: { eager: true } }, [this.genTimePicker()])
       ])
     }
   },
@@ -139,9 +191,7 @@ export default Vue.extend({
   render (h): VNode {
     return h(VPicker, {
       staticClass: 'v-date-time-picker',
-      props: {
-
-      }
+      props: this.$props
     }, [
       h('template', { slot: 'title' }, [
         this.genHeaders(),

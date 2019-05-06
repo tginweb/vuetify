@@ -57,6 +57,8 @@ export default mixins<options &
 ).extend({
   name: 'v-time-picker-clock',
 
+  inheritAttrs: false,
+
   props: {
     allowed: {
       type: Object,
@@ -83,12 +85,6 @@ export default mixins<options &
       internalSelectMode: this.selectMode,
       isDragging: false,
       valueOnMouseUp: null as number | null
-    }
-  },
-
-  watch: {
-    selectMode (v: SelectMode) {
-      this.internalSelectMode = v
     }
   },
 
@@ -132,6 +128,12 @@ export default mixins<options &
     },
     unitsPerCircle (): number {
       return this.isTwoCircles ? (this.unitCount / 2) : this.unitCount
+    }
+  },
+
+  watch: {
+    selectMode (v: SelectMode) {
+      this.internalSelectMode = v
     }
   },
 
