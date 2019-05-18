@@ -1,16 +1,41 @@
 import './VPicker.sass'
 import '../VCard/VCard.sass'
 
+// Components
+import VPickerBtn from './VPickerBtn'
+
 // Mixins
 import Colorable from '../../mixins/colorable'
 import Themeable from '../../mixins/themeable'
+import mixins from '../../util/mixins'
 
 // Helpers
 import { convertToUnit } from '../../util/helpers'
 
 // Types
-import { VNode } from 'vue/types'
-import mixins from '../../util/mixins'
+import { VNode, CreateElement, VNodeChildren } from 'vue/types'
+
+export function genPickerButton (
+  h: CreateElement,
+  children: VNodeChildren,
+  click: () => void,
+  active: Boolean,
+  readonly = false,
+  staticClass = ''
+) {
+  return h(VPickerBtn, {
+    staticClass,
+    props: {
+      active,
+      readonly
+    },
+    on: {
+      click
+    }
+  }, children)
+}
+
+const minWidth = 290
 
 /* @vue/component */
 export default mixins(Colorable, Themeable).extend({
@@ -29,14 +54,18 @@ export default mixins(Colorable, Themeable).extend({
     },
     width: {
       type: [Number, String],
-      default: 290
+      default: minWidth
     }
   },
 
   computed: {
     computedTitleColor (): string | false {
       const defaultTitleColor = this.isDark ? false : (this.color || 'primary')
-      return this.color || defaultTitleColor
+      return this.headerColor || defaultTitleColor
+    },
+    computedWidth (): number {
+      if (!this.width || parseInt(this.width, 10) < minWidth) return minWidth
+      else return parseInt(this.width, 10)
     }
   },
 
@@ -61,7 +90,7 @@ export default mixins(Colorable, Themeable).extend({
         staticClass: 'v-picker__body',
         'class': this.themeClasses,
         style: this.fullWidth ? undefined : {
-          width: convertToUnit(this.width)
+          width: convertToUnit(this.computedWidth)
         }
       }, [
         this.genBodyTransition()

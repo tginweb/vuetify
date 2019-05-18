@@ -16,7 +16,18 @@ export default mixins(
 
   methods: {
     calculateTableDate (delta: number) {
-      return `${parseInt(this.tableDate, 10) + Math.sign(delta || 1)}`
+      return `${this.displayedYear + Math.sign(delta || 1)}`
+    },
+    genButtonEvents (value: string, isAllowed: boolean) {
+      if (this.disabled) return undefined
+
+      return {
+        click: () => {
+          isAllowed && this.$emit('input', value)
+          this.$emit(`click:month`, value)
+        },
+        dblclick: () => this.$emit(`dblclick:month`, value)
+      }
     },
     genTBody () {
       const children = []
@@ -30,7 +41,7 @@ export default mixins(
           return this.$createElement('td', {
             key: month
           }, [
-            this.genButton(date, false, 'month', this.dateFormat)
+            this.genButton(date, false, this.dateFormat)
           ])
         })
 

@@ -45,7 +45,7 @@ export default mixins(
     max: String,
     readonly: Boolean,
     scrollable: Boolean,
-    tableDate: {
+    pickerDate: {
       type: String,
       required: true
     },
@@ -61,15 +61,15 @@ export default mixins(
       return (this.isReversing === !this.$vuetify.rtl) ? 'tab-reverse-transition' : 'tab-transition'
     },
     displayedMonth (): number {
-      return Number(this.tableDate.split('-')[1]) - 1
+      return Number(this.pickerDate.split('-')[1]) - 1
     },
     displayedYear (): number {
-      return Number(this.tableDate.split('-')[0])
+      return Number(this.pickerDate.split('-')[0])
     }
   },
 
   watch: {
-    tableDate (newVal: string, oldVal: string) {
+    pickerDate (newVal: string, oldVal: string) {
       this.isReversing = newVal < oldVal
     }
   },
@@ -87,18 +87,10 @@ export default mixins(
         ...this.themeClasses
       }
     },
-    genButtonEvents (value: string, isAllowed: boolean, mouseEventType: string) {
-      if (this.disabled) return undefined
-
-      return {
-        click: () => {
-          isAllowed && !this.readonly && this.$emit('input', value)
-          this.$emit(`click:${mouseEventType}`, value)
-        },
-        dblclick: () => this.$emit(`dblclick:${mouseEventType}`, value)
-      }
+    genButtonEvents (value: string, isAllowed: boolean) {
+      throw new Error('Not implemented')
     },
-    genButton (value: string, isFloating: boolean, mouseEventType: string, formatter: DatePickerFormatter) {
+    genButton (value: string, isFloating: boolean, formatter: DatePickerFormatter) {
       const isAllowed = isDateAllowed(value, this.min, this.max, this.allowedDates)
       const isSelected = value === this.value || (Array.isArray(this.value) && this.value.indexOf(value) !== -1)
       const isCurrent = value === this.currentDate
@@ -114,7 +106,7 @@ export default mixins(
         domProps: {
           disabled: this.disabled || !isAllowed
         },
-        on: this.genButtonEvents(value, isAllowed, mouseEventType)
+        on: this.genButtonEvents(value, isAllowed)
       }), [
         this.$createElement('div', {
           staticClass: 'v-btn__content'
@@ -162,15 +154,15 @@ export default mixins(
     },
     wheel (e: WheelEvent, calculateTableDate: CalculateTableDateFunction) {
       e.preventDefault()
-      this.$emit('tableDate', calculateTableDate(e.deltaY))
+      this.$emit('update:pickerDate', calculateTableDate(e.deltaY))
     },
     touch (value: number, calculateTableDate: CalculateTableDateFunction) {
-      this.$emit('tableDate', calculateTableDate(value))
+      this.$emit('update:pickerDate', calculateTableDate(value))
     },
     genTable (staticClass: string, children: VNodeChildren, calculateTableDate: CalculateTableDateFunction) {
       const transition = this.$createElement('transition', {
         props: { name: this.computedTransition }
-      }, [this.$createElement('table', { key: String(this.tableDate) }, children)])
+      }, [this.$createElement('table', { key: String(this.pickerDate) }, children)])
 
       const touchDirective = {
         name: 'touch',

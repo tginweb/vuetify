@@ -2,11 +2,12 @@ import './VTimePickerTitle.sass'
 
 // Utils
 import { pad } from '../VDatePicker/util'
-import { genPickerButton } from '../VPicker'
+import { genPickerButton } from '../VPicker/VPicker'
 
-import { PropValidator } from 'vue/types/options'
+// Types
 import Vue, { VNode } from 'vue'
-import { Time, SelectMode } from './VTime'
+import { PropValidator } from 'vue/types/options'
+import { Time, SelectMode, Format, convert24to12 } from './VTime'
 
 export default Vue.extend({
   name: 'v-time-picker-title',
@@ -14,7 +15,8 @@ export default Vue.extend({
   inheritAttrs: false,
 
   props: {
-    isAmPm: Boolean,
+    format: String as PropValidator<Format>,
+    showAmPm: Boolean,
     disabled: Boolean,
     period: {
       type: String,
@@ -22,15 +24,21 @@ export default Vue.extend({
     } as PropValidator<'am' | 'pm'>,
     readonly: Boolean,
     useSeconds: Boolean,
-    selectMode: Number as PropValidator<SelectMode>,
+    selectMode: String as PropValidator<SelectMode>,
     time: Object as PropValidator<Time>
+  },
+
+  computed: {
+    isAmPm (): boolean {
+      return this.format === 'ampm'
+    }
   },
 
   methods: {
     genTime () {
       let hour = this.time ? this.time.hour : null
       if (hour != null && this.isAmPm) {
-        hour = (hour - 1) % 12 + 1
+        hour = convert24to12(hour)
       }
 
       const displayedHour = hour == null ? '--' : this.isAmPm ? String(hour) : pad(hour)
@@ -93,7 +101,7 @@ export default Vue.extend({
   render (h): VNode {
     const children = [this.genTime()]
 
-    this.isAmPm && children.push(this.genAmPm())
+    this.isAmPm && this.showAmPm && children.push(this.genAmPm())
 
     return h('div', {
       staticClass: 'v-time-picker-title'

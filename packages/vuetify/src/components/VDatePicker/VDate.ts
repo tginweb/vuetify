@@ -5,20 +5,18 @@ import Localable from '../../mixins/localable'
 import { pad, createNativeLocaleFormatter } from './util'
 import isDateAllowed, { AllowedDateFunction } from './util/isDateAllowed'
 import { consoleWarn } from '../../util/console'
-import { daysInMonth } from '../VCalendar/util/timestamp'
 import mixins from '../../util/mixins'
 
 // Types
 import { PropValidator } from 'vue/types/options'
 import { DatePickerFormatter } from './util/createNativeLocaleFormatter'
 import { VNode } from 'vue'
+import { wrapInArray } from '../../util/helpers'
 
 export type DateEventColorValue = string | string[]
 export type DateEvents = string[] | ((date: string) => boolean | DateEventColorValue) | Record<string, DateEventColorValue>
 export type DateEventColors = DateEventColorValue | Record<string, DateEventColorValue> | ((date: string) => DateEventColorValue)
-type DatePickerValue = string | string[] | undefined
-type DatePickerType = 'date' | 'month'
-type DatePickerMultipleFormatter = (date: string[]) => string
+export type DatePickerMultipleFormatter = (date: string[]) => string
 
 export interface VDateFormatters {
   year: DatePickerFormatter
@@ -38,19 +36,46 @@ function sanitizeDateString (dateString: string, type: 'date' | 'month' | 'year'
   return `${year}-${pad(month)}-${pad(date)}`.substr(0, { date: 10, month: 7, year: 4 }[type])
 }
 
-export enum PickerType {
-  Year = 0,
-  Month = 1,
-  Date = 2
+export const enum PickerType {
+  Year = 'year',
+  Month = 'month',
+  Date = 'date'
 }
 
-const PickerTypeNames = <const>['year', 'month', 'date']
+type DatePickerValue = string | string[] | undefined
+type DatePickerType = 'date' | 'month' | 'year'
 
-export const getPickerTypeName = (pickerType: number) => PickerTypeNames[pickerType]
+export interface VDateScopedProps {
+  dateClick: Function
+  monthClick: Function
+  yearClick: Function
+  formatters: VDateFormatters
+  value: string[]
+  activePicker: PickerType
+  updateActivePicker: Function
+  pickerDate: string
+  updatePickerDate: Function
+  multiple: boolean
+}
 
-const substrOptions = { date: 10, month: 7, year: 4 }
-
-const getSubstrOption = <K extends keyof typeof substrOptions>(key: K) => substrOptions[key]
+export const VDateProps = {
+  formatters: {
+    type: Object,
+    default: () => ({})
+  } as PropValidator<Partial<VDateFormatters>>,
+  allowedDates: Function as PropValidator<AllowedDateFunction | undefined>,
+  max: String,
+  min: String,
+  multiple: Boolean,
+  pickerDate: String,
+  reactive: Boolean,
+  value: [Array, String] as PropValidator<DatePickerValue>,
+  type: {
+    type: String,
+    default: 'date',
+    validator: (type: any) => ['year', 'month', 'date'].includes(type)
+  } as any as PropValidator<DatePickerType>
+}
 
 export default mixins(
   Localable
@@ -61,207 +86,145 @@ export default mixins(
   inheritAttrs: false,
 
   props: {
-    formatters: {
-      type: Object,
-      default: () => ({})
-    } as PropValidator<Partial<VDateFormatters>>,
-    allowedDates: Function as PropValidator<AllowedDateFunction | undefined>,
-    max: String,
-    min: String,
-    multiple: Boolean,
-    pickerDate: String,
-    reactive: Boolean,
-    type: {
-      type: String,
-      default: 'date',
-      validator: (type: any) => PickerTypeNames.includes(type) // TODO: year
-    } as any as PropValidator<DatePickerType>,
-    value: [Array, String] as PropValidator<DatePickerValue>
+    ...VDateProps
   },
 
   data () {
     const now = new Date()
+    const nowDate = sanitizeDateString(now.toISOString(), 'date')
+    const internalPickerDate = sanitizeDateString(this.pickerDate || nowDate, 'month')
+
     return {
-      internalDate: {
-        year: null as number | null,
-        month: null as number | null,
-        date: null as number | null
-      },
-      activePicker: PickerTypeNames.findIndex(v => v === this.type),
-      inputDay: null as number | null,
-      inputMonth: null as number | null,
-      inputYear: null as number | null,
-      isReversing: false,
       now,
-      // tableDate is a string in 'YYYY' / 'YYYY-M' format (leading zero for month is not required)
-      tableDate: (() => {
-        if (this.pickerDate) {
-          return this.pickerDate
-        }
-
-        const date = (this.multiple ? (this.value as string[])[(this.value as string[]).length - 1] : this.value) ||
-          `${now.getFullYear()}-${now.getMonth() + 1}`
-
-        return sanitizeDateString(date as string, 'month')
-      })()
+      internalPickerDate,
+      internalDate: this.value ? wrapInArray(this.value) : [nowDate],
+      activePicker: this.type as PickerType
     }
   },
 
   computed: {
-    lastValue (): string | null {
-      return this.multiple ? (this.value as string[])[(this.value as string[]).length - 1] : (this.value as string | null)
-    },
-    selectedMonths (): string | string[] | undefined {
-      if (!this.value || !this.value.length || this.type === 'month') {
-        return this.value
-      } else if (this.multiple) {
-        return (this.value as string[]).map(val => val.substr(0, 7))
-      } else {
-        return (this.value as string).substr(0, 7)
-      }
-    },
-    inputDate (): string {
-      return this.type === 'date'
-        ? `${this.inputYear}-${pad(this.inputMonth! + 1)}-${pad(this.inputDay!)}`
-        : `${this.inputYear}-${pad(this.inputMonth! + 1)}`
-    },
-    tableMonth (): string {
-      return String(Number((this.pickerDate || this.tableDate).split('-')[1]) - 1)
-    },
-    tableYear (): string {
-      return (this.pickerDate || this.tableDate).split('-')[0]
-    },
-    minMonth (): string | null {
-      return this.min ? sanitizeDateString(this.min, 'month') : null
-    },
-    maxMonth (): string | null {
-      return this.max ? sanitizeDateString(this.max, 'month') : null
-    },
-    minYear (): string | null {
-      return this.min ? sanitizeDateString(this.min, 'year') : null
-    },
-    maxYear (): string | null {
-      return this.max ? sanitizeDateString(this.max, 'year') : null
+    lastPickedValue (): string {
+      return this.internalDate[this.internalDate.length - 1]
     },
     computedFormatters (): VDateFormatters {
       return {
         year: this.formatters.year || createNativeLocaleFormatter(this.currentLocale, { year: 'numeric', timeZone: 'UTC' }, { length: 4 }),
-        titleDate: this.formatters.titleDate || (this.multiple ? this.defaultTitleMultipleDateFormatter : this.defaultTitleDateFormatter),
+        titleDate: this.formatters.titleDate || this.defaultTitleDateFormatter,
         landscapeTitleDate: this.formatters.landscapeTitleDate || this.defaultLandscapeTitleDate,
         weekday: this.formatters.weekday || createNativeLocaleFormatter(this.currentLocale, { weekday: 'narrow', timeZone: 'UTC' }) || (v => v),
         date: this.formatters.date || createNativeLocaleFormatter(this.currentLocale, { day: 'numeric', timeZone: 'UTC' }, { start: 8, length: 2 }) || (v => v),
         headerMonth: this.formatters.headerMonth || createNativeLocaleFormatter(this.currentLocale, { month: 'long', year: 'numeric', timeZone: 'UTC' }, { length: 7 }),
-        month: this.formatters.month || (v => v),
-        headerDate: this.formatters.headerDate || (v => v)
+        month: this.formatters.month || createNativeLocaleFormatter(this.currentLocale, { month: 'short', timeZone: 'UTC' }, { start: 5, length: 2 }),
+        headerDate: this.formatters.headerDate || createNativeLocaleFormatter(this.currentLocale, { year: 'numeric', timeZone: 'UTC' }, { length: 4 })
       }
     },
-    defaultTitleMultipleDateFormatter (): DatePickerMultipleFormatter {
-      if ((this.value as string[]).length < 2) {
-        return dates => dates.length ? this.defaultTitleDateFormatter(dates[0]) : '0 selected'
-      }
-
-      return dates => `${dates.length} selected`
-    },
-    defaultTitleDateFormatter (): DatePickerFormatter {
+    defaultTitleDateFormatter (): DatePickerMultipleFormatter {
       const titleFormats = {
         year: { year: 'numeric', timeZone: 'UTC' },
         month: { month: 'long', timeZone: 'UTC' },
         date: { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' }
       }
 
+      const substrOptions = { date: 10, month: 7, year: 4 }
+
       const titleDateFormatter = createNativeLocaleFormatter(this.currentLocale, titleFormats[this.type], {
         start: 0,
-        length: getSubstrOption(this.type)
+        length: substrOptions[this.type]
       })
 
-      return titleDateFormatter
+      if (this.multiple) {
+        if (this.internalDate.length < 2) return dates => dates.length ? titleDateFormatter(dates[0]) : '0 selected' // TODO: localization
+        else return dates => `${dates.length} selected` // TODO: localization
+      } else {
+        return dates => dates.length ? titleDateFormatter(dates[0]) : ''
+      }
     },
-    defaultLandscapeTitleDate (): DatePickerFormatter {
-      return (date: string) => this.defaultTitleDateFormatter(date)
+    defaultLandscapeTitleDate (): DatePickerMultipleFormatter {
+      return (date: string[]) => this.defaultTitleDateFormatter(date)
         .replace(/([^\d\s])([\d])/g, (match, nonDigit, digit) => `${nonDigit} ${digit}`)
         .replace(', ', ',<br>')
     },
-    scopedSlotProps (): any {
+    scopedSlotProps (): VDateScopedProps {
       return {
         dateClick: this.dateClick,
         monthClick: this.monthClick,
         yearClick: this.yearClick,
         formatters: this.computedFormatters,
-        value: this.value,
+        value: this.internalDate,
         activePicker: this.activePicker,
         updateActivePicker: this.updateActivePicker,
-        pickerDate: this.pickerDate,
-        tableDate: this.tableDate,
-        tableMonth: this.tableMonth,
-        tableYear: this.tableYear
+        pickerDate: this.internalPickerDate,
+        updatePickerDate: this.updatePickerDate,
+        multiple: this.multiple
       }
     }
   },
 
   watch: {
-    tableDate (val: string, prev: string) {
+    internalPickerDate (val: string, prev: string) {
+      // TODO: What was isReversing used for??
       // Make a ISO 8601 strings from val and prev for comparision, otherwise it will incorrectly
       // compare for example '2000-9' and '2000-10'
-      const sanitizeType = this.type === 'month' ? 'year' : 'month'
-      this.isReversing = sanitizeDateString(val, sanitizeType) < sanitizeDateString(prev, sanitizeType)
+      // const sanitizeType = this.type === 'month' ? 'year' : 'month'
+      // this.isReversing = sanitizeDateString(val, sanitizeType) < sanitizeDateString(prev, sanitizeType)
       this.$emit('update:pickerDate', val)
     },
     pickerDate (val: string | null) {
       if (val) {
-        this.tableDate = val
-      } else if (this.lastValue && this.type === 'date') {
-        this.tableDate = sanitizeDateString(this.lastValue, 'month')
-      } else if (this.lastValue && this.type === 'month') {
-        this.tableDate = sanitizeDateString(this.lastValue, 'year')
+        this.internalPickerDate = val
+      } else if (this.lastPickedValue) {
+        this.internalPickerDate = sanitizeDateString(this.lastPickedValue, 'month')
       }
     },
     value (newValue: DatePickerValue, oldValue: DatePickerValue) {
       this.checkMultipleProp()
-      this.setInputDate()
 
-      if (!this.multiple && this.value && !this.pickerDate) {
-        this.tableDate = sanitizeDateString(this.inputDate, this.type === 'month' ? 'year' : 'month')
-      } else if (this.multiple && (this.value as string[]).length && !(oldValue as string[]).length && !this.pickerDate) {
-        this.tableDate = sanitizeDateString(this.inputDate, this.type === 'month' ? 'year' : 'month')
+      if (newValue) {
+        const arr = wrapInArray(newValue)
+
+        if (!arr.every(this.isDateAllowed)) return
+
+        this.internalDate = arr
+      }
+
+      if (this.value && !this.pickerDate) {
+        this.internalPickerDate = sanitizeDateString(this.lastPickedValue, 'month')
       }
     },
-    type (type: DatePickerType) {
-      this.activePicker = PickerTypeNames.findIndex(v => v === type)
+    type (type: PickerType) {
+      this.activePicker = type
 
-      if (this.value && this.value.length) {
-        const output = (this.multiple ? (this.value as string[]) : [this.value as string])
-          .map((val: string) => sanitizeDateString(val, type))
-          .filter(this.isDateAllowed)
-        this.$emit('input', this.multiple ? output : output[0])
+      // If we're switching type then we need to reformat current values
+      // e.g. 2019-05-01 => 2019-05 when going from date to month
+      if (this.internalDate.length) {
+        this.internalDate = this.internalDate.map(date => sanitizeDateString(date, type)).filter(this.isDateAllowed)
       }
+    },
+    internalDate (internalDate: string[]) {
+      this.emitInput()
     }
   },
 
   created () {
     this.checkMultipleProp()
 
-    if (this.pickerDate !== this.tableDate) {
-      this.$emit('update:pickerDate', this.tableDate)
-    }
-    this.setInputDate()
+    if (!this.value) this.emitInput()
   },
 
   methods: {
     updateActivePicker (type: PickerType) {
       this.activePicker = type
     },
-    emitInput (newInput: string) {
-      console.log('emitInput')
-      const output = this.multiple
-        ? (
-          (this.value as string[]).indexOf(newInput) === -1
-            ? (this.value as string[]).concat([newInput])
-            : (this.value as string[]).filter(x => x !== newInput)
-        )
-        : newInput
+    updatePickerDate (date: string) {
+      this.internalPickerDate = date
+    },
+    emitInput () {
+      if (!this.internalDate.length) return
 
-      this.$emit('input', output)
-      this.multiple || this.$emit('change', newInput)
+      const value = this.multiple ? this.internalDate : this.internalDate[0]
+
+      this.$emit('input', value)
+      !this.multiple && this.$emit('change', value)
     },
     checkMultipleProp () {
       if (this.value == null) return
@@ -271,72 +234,41 @@ export default mixins(
         consoleWarn(`Value must be ${this.multiple ? 'an' : 'a'} ${expected}, got ${valueType}`, this)
       }
     },
-    isDateAllowed (value: string) {
+    isDateAllowed (value: string): boolean {
       return isDateAllowed(value, this.min, this.max, this.allowedDates)
     },
-    yearClick (value: number) {
-      this.inputYear = value
-      if (this.type === 'month') {
-        this.tableDate = `${value}`
+    yearClick (value: string) {
+      if (this.type !== 'year') {
+        const month = this.internalPickerDate.split('-')[1]
+        this.internalPickerDate = sanitizeDateString(`${value}-${month}`, 'month')
+        this.activePicker = PickerType.Month
       } else {
-        console.log('here', this.tableMonth)
-        this.tableDate = `${value}-${pad((parseInt(this.tableMonth) || 0) + 1)}`
+        this.updateInternalDate(value)
       }
-      this.activePicker = PickerType.Month
-      // if (this.reactive && !this.readonly && !this.multiple && this.isDateAllowed(this.inputDate)) {
-      //   this.$emit('input', this.inputDate)
-      // }
-      // TODO: Why not always emit here?
-      // if (!this.multiple && this.isDateAllowed(this.inputDate)) {
-      //   this.$emit('input', this.inputDate)
-      // }
     },
     monthClick (value: string) {
-      this.inputYear = parseInt(value.split('-')[0], 10)
-      this.inputMonth = parseInt(value.split('-')[1], 10) - 1
-
       if (this.type === 'date') {
-        // if (this.inputDay) {
-        //   this.inputDay = Math.min(this.inputDay, daysInMonth(this.inputYear, this.inputMonth + 1))
-        // }
-
-        this.tableDate = value
+        this.internalPickerDate = value
         this.activePicker = PickerType.Date
-        // if (this.reactive && !this.readonly && !this.multiple && this.isDateAllowed(this.inputDate)) {
-        //   this.$emit('input', this.inputDate)
-        // }
-        // TODO: Why not always emit here?
-        // if (!this.multiple && this.isDateAllowed(this.inputDate)) {
-        //   this.$emit('input', this.inputDate)
-        // }
       } else {
-        // this.emitInput(this.inputDate)
+        this.updateInternalDate(value)
       }
     },
     dateClick (value: string) {
-      this.inputYear = parseInt(value.split('-')[0], 10)
-      this.inputMonth = parseInt(value.split('-')[1], 10) - 1
-      this.inputDay = parseInt(value.split('-')[2], 10)
-      this.emitInput(this.inputDate)
+      this.updateInternalDate(value)
     },
-    setInputDate () {
-      if (this.lastValue) {
-        const array = this.lastValue.split('-')
-        this.inputYear = parseInt(array[0], 10)
-        this.inputMonth = parseInt(array[1], 10) - 1
-        if (this.type === 'date') {
-          this.inputDay = parseInt(array[2], 10)
-        }
+    updateInternalDate (value: string) {
+      if (this.internalDate.includes(value)) {
+        this.internalDate = this.internalDate.filter(d => d !== value)
+      } else if (this.multiple) {
+        this.internalDate.push(value)
       } else {
-        this.inputYear = this.inputYear || this.now.getFullYear()
-        this.inputMonth = this.inputMonth == null ? this.inputMonth : this.now.getMonth()
-        this.inputDay = this.inputDay || this.now.getDate()
+        this.internalDate = [value]
       }
     }
   },
 
   render (): VNode {
-    // return this.genPicker('v-picker--date')
     return this.$scopedSlots.default!(this.scopedSlotProps) as any
   }
 })

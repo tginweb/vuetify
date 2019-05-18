@@ -10,7 +10,7 @@ import Localable from '../../mixins/localable'
 import Themeable from '../../mixins/themeable'
 
 // Utils
-import { createNativeLocaleFormatter, monthChange } from './util'
+import { monthChange } from './util'
 import mixins from '../../util/mixins'
 
 // Types
@@ -48,7 +48,7 @@ export default mixins(
       type: [Number, String],
       required: true
     },
-    activePicker: Number as PropValidator<PickerType>
+    activePicker: String as PropValidator<PickerType>
   },
 
   data () {
@@ -114,7 +114,6 @@ export default mixins(
       }
     },
     genHeader () {
-      console.log(this.value)
       const color = !this.disabled && (this.color || 'accent')
       const header = this.$createElement('div', this.setTextColor(color, {
         key: String(this.value)

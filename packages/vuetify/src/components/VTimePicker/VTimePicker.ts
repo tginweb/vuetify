@@ -1,6 +1,6 @@
 // Components
 import VPicker from '../VPicker'
-import VTime, { SelectMode, Time, Period } from './VTime'
+import VTime, { SelectMode, Time, Period, VTimeScopedProps } from './VTime'
 import VTimePickerTitle from './VTimePickerTitle'
 import VTimePickerClock from './VTimePickerClock'
 
@@ -22,27 +22,28 @@ export default Vue.extend({
     readonly: Boolean,
     disabled: Boolean,
     scrollable: Boolean,
-    useSeconds: Boolean,
     showAmPmInTitle: Boolean
   },
 
   methods: {
-    genClock (props: any) {
+    genClock (props: VTimeScopedProps) {
       return this.$createElement(VTimePickerClock, {
+        key: props.selectMode,
         props: {
-          allowedValues: props.allowedValues,
+          allowed: props.allowed,
           color: this.color,
           dark: this.dark,
           disabled: this.disabled,
-          isAmPm: props.isAmPm,
+          format: props.format,
           light: this.light,
           readonly: this.readonly,
-          scrollable: this.scrollable,
-          showAmPm: !this.showAmPmInTitle && props.isAmPm,
-          selectMode: props.selectMode,
-          time: props.time,
           period: props.period,
-          size: 290
+          scrollable: this.scrollable,
+          showAmPm: !this.showAmPmInTitle,
+          selectMode: props.selectMode,
+          size: this.width,
+          time: props.time,
+          useSeconds: props.useSeconds
         },
         on: {
           'update:period': (p: Period) => props.setPeriod(p),
@@ -51,16 +52,17 @@ export default Vue.extend({
         }
       })
     },
-    genTitle (props: any) {
+    genTitle (props: VTimeScopedProps) {
       return this.$createElement(VTimePickerTitle, {
         props: {
-          isAmPm: this.showAmPmInTitle && props.isAmPm,
           disabled: this.disabled,
-          time: props.time,
+          format: props.format,
           period: props.period,
           readonly: this.readonly,
-          useSeconds: props.useSeconds,
-          selectMode: props.selectMode
+          selectMode: props.selectMode,
+          showAmPm: this.showAmPmInTitle,
+          time: props.time,
+          useSeconds: props.useSeconds
         },
         on: {
           'update:selectMode': (m: SelectMode) => props.setSelectMode(m),
@@ -69,10 +71,10 @@ export default Vue.extend({
         slot: 'title'
       })
     },
-    genPicker (props: any) {
+    genPicker (props: VTimeScopedProps) {
       return this.$createElement(VPicker, {
         staticClass: 'v-picker--time',
-        props: this.$attrs
+        props: this.$props
       }, [
         this.genTitle(props),
         this.genClock(props)
@@ -87,10 +89,11 @@ export default Vue.extend({
         format: this.format,
         min: this.min,
         max: this.max,
-        value: this.value
+        value: this.value,
+        useSeconds: this.useSeconds
       },
       scopedSlots: {
-        default: (props: any) => this.genPicker(props)
+        default: props => this.genPicker(props)
       },
       on: {
         input: (v: string) => this.$emit('input', v)

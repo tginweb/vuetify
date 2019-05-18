@@ -2,13 +2,13 @@ import './VDatePickerTitle.sass'
 
 // Components
 import VIcon from '../VIcon'
-import { genPickerButton } from '../VPicker'
+import { genPickerButton } from '../VPicker/VPicker'
 
 // Types
 import Vue, { VNode } from 'vue'
 import { PropValidator } from 'vue/types/options'
 import { DatePickerFormatter } from './util/createNativeLocaleFormatter'
-import { PickerType } from './VDate'
+import { PickerType, DatePickerMultipleFormatter } from './VDate'
 
 export default Vue.extend({
   name: 'v-date-picker-title',
@@ -16,9 +16,9 @@ export default Vue.extend({
   inheritAttrs: false,
 
   props: {
-    dateFormat: Function as PropValidator<DatePickerFormatter>,
+    dateFormat: Function as PropValidator<DatePickerMultipleFormatter>,
     yearFormat: Function as PropValidator<DatePickerFormatter>,
-    value: [String, Array] as PropValidator<string | string[]>,
+    value: Array as PropValidator<string[]>,
     disabled: Boolean,
     readonly: Boolean,
     selectingYear: Boolean,
@@ -37,10 +37,10 @@ export default Vue.extend({
       return this.isReversing ? 'picker-reverse-transition' : 'picker-transition'
     },
     date (): string {
-      return (this.dateFormat as (v: any) => string)(this.value) // TODO: Why does function get string & string[] as type?
+      return this.dateFormat(this.value)
     },
     year (): string {
-      return this.yearFormat(Array.isArray(this.value) ? this.value[0] : this.value)
+      return this.value && this.value.length ? this.yearFormat(this.value[0]) : '-'
     },
     key (): string {
       return Array.isArray(this.value) ? this.value[0] : this.value
@@ -57,11 +57,12 @@ export default Vue.extend({
     genYearIcon (): VNode {
       return this.$createElement(VIcon, {
         props: {
+          small: true,
           dark: true
         }
       }, this.yearIcon)
     },
-    getYearBtn (): VNode {
+    genYearBtn (): VNode {
       return genPickerButton(
         this.$createElement,
         [
@@ -105,7 +106,7 @@ export default Vue.extend({
         'v-date-picker-title--disabled': this.disabled
       }
     }, [
-      this.getYearBtn(),
+      this.genYearBtn(),
       this.genTitleDate()
     ])
   }

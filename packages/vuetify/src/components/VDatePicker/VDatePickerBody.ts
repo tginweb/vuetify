@@ -2,22 +2,52 @@ import { VNode, VNodeChildren } from 'vue'
 import mixins from '../../util/mixins'
 import Colorable from '../../mixins/colorable'
 import Themeable from '../../mixins/themeable'
-import { VDatePickerProps, DateEventColors } from './VDatePicker'
+import { DateEventColors } from './VDatePicker'
 import VDatePickerHeader from './VDatePickerHeader'
 import VDatePickerDateTable from './VDatePickerDateTable'
 import VDatePickerMonthTable from './VDatePickerMonthTable'
 import VDatePickerYears from './VDatePickerYears'
-import { PickerType, DateEvents, getPickerTypeName, VDateFormatters } from './VDate'
+import { PickerType, DateEvents, VDateProps } from './VDate'
 import { PropValidator } from 'vue/types/options'
 import { pad } from './util'
 import Localable from '../../mixins/localable'
-import { AllowedDateFunction } from './util/isDateAllowed'
 
 // Adds leading zero to month/day if necessary, returns 'YYYY' if type = 'year',
 // 'YYYY-MM' if 'month' and 'YYYY-MM-DD' if 'date'
 function sanitizeDateString (dateString: string, type: 'date' | 'month' | 'year'): string {
   const [year, month = 1, date = 1] = dateString.split('-')
   return `${year}-${pad(month)}-${pad(date)}`.substr(0, { date: 10, month: 7, year: 4 }[type])
+}
+
+export const VDatePickerBodyProps = {
+  disabled: Boolean,
+  events: {
+    type: [Array, Function, Object],
+    default: () => null
+  } as any as PropValidator<DateEvents>,
+  eventColor: {
+    type: [Array, Function, Object, String],
+    default: () => 'warning'
+  } as any as PropValidator<DateEventColors>,
+  nextIcon: {
+    type: String,
+    default: '$vuetify.icons.next'
+  },
+  pickerDate: String,
+  prevIcon: {
+    type: String,
+    default: '$vuetify.icons.prev'
+  },
+  firstDayOfWeek: {
+    type: [String, Number],
+    default: 0
+  },
+  hideCurrentDate: Boolean,
+  reactive: Boolean,
+  readonly: Boolean,
+  scrollable: Boolean,
+  showWeekNumbers: Boolean,
+  yearIcon: String
 }
 
 export default mixins(
@@ -30,42 +60,10 @@ export default mixins(
   inheritAttrs: false,
 
   props: {
-    nextIcon: String,
-    prevIcon: String,
-    disabled: Boolean,
-    readonly: Boolean,
-    events: {
-      type: [Array, Function, Object],
-      default: () => null
-    } as any as PropValidator<DateEvents>,
-    eventColor: {
-      type: [Array, Function, Object, String],
-      default: () => 'warning'
-    } as any as PropValidator<DateEventColors>,
-    scrollable: Boolean,
-
-    showWeekNumbers: Boolean,
-    hideCurrentDate: Boolean,
-    firstDayOfWeek: {
-      type: [String, Number],
-      default: 0
-    },
-
-    min: String,
-    max: String,
-    minMonth: String,
-    maxMonth: String,
-    minYear: String,
-    maxYear: String,
-    formatters: Object as PropValidator<VDateFormatters>,
-    allowedDates: Function as PropValidator<AllowedDateFunction | undefined>,
-    tableMonth: String,
-    tableDate: String,
-    tableYear: String,
-    pickerDate: String,
-    value: [String, Array] as PropValidator<string | string[]>,
-
-    activePicker: Number as PropValidator<PickerType>
+    ...VDatePickerBodyProps,
+    ...VDateProps,
+    value: Array as PropValidator<string[]>,
+    activePicker: String as PropValidator<PickerType>
   },
 
   data () {
@@ -75,6 +73,24 @@ export default mixins(
   },
 
   computed: {
+    minMonth (): string | null {
+      return this.min ? sanitizeDateString(this.min, 'month') : null
+    },
+    maxMonth (): string | null {
+      return this.max ? sanitizeDateString(this.max, 'month') : null
+    },
+    minYear (): string | null {
+      return this.min ? sanitizeDateString(this.min, 'year') : null
+    },
+    maxYear (): string | null {
+      return this.max ? sanitizeDateString(this.max, 'year') : null
+    },
+    tableYear (): number {
+      return this.pickerDate ? parseInt(this.pickerDate.split('-')[0], 10) : 0
+    },
+    tableMonth (): number {
+      return this.pickerDate ? parseInt(this.pickerDate.split('-')[1], 10) - 1 : 0
+    },
     isDatePicker (): boolean {
       return this.activePicker === PickerType.Date
     },
@@ -88,13 +104,17 @@ export default mixins(
       return sanitizeDateString(`${this.now.getFullYear()}-${this.now.getMonth() + 1}-${this.now.getDate()}`, 'month')
     },
     selectedMonths (): string | string[] | undefined {
-      if (!this.value || !this.value.length || this.activePicker === PickerType.Month) {
-        return this.value
-      } else if (this.multiple) {
-        return (this.value as string[]).map(val => val.substr(0, 7))
-      } else {
-        return (this.value as string).substr(0, 7)
-      }
+      // if (!this.value || !this.value.length || this.activePicker === PickerType.Month) {
+      //   return this.value
+      // } else if (this.multiple) {
+      //   return (this.value as string[]).map(val => val.substr(0, 7))
+      // } else {
+      //   return (this.value as string).substr(0, 7)
+      // }
+      return this.value.map(val => val.substr(0, 7))
+    },
+    selectedYears (): string[] {
+      return this.value.map(date => date.substr(0, 4))
     }
   },
 
@@ -115,7 +135,7 @@ export default mixins(
           prevIcon: this.prevIcon,
           readonly: this.readonly,
           activePicker: this.activePicker,
-          value: this.tableDate
+          value: this.pickerDate
         },
         on: {
           'update:activePicker': (picker: PickerType) => this.$emit('update:activePicker', picker/* this.isDateType ? PickerType.Month : PickerType.Year */),
@@ -144,12 +164,12 @@ export default mixins(
           readonly: this.readonly,
           scrollable: this.scrollable,
           showWeekNumbers: this.showWeekNumbers,
-          tableDate: this.tableDate,
+          pickerDate: this.pickerDate,
           value: this.value
         },
         on: {
           input: (date: number) => this.$emit('update:date', date),
-          'update:tableDate': (value: string) => this.$emit('update:tableDate', value),
+          'update:pickerDate': (value: string) => this.$emit('update:pickerDate', value),
           'click:date': (value: string) => this.$emit('click:date', value),
           'dblclick:date': (value: string) => this.$emit('dblclick:date', value)
         }
@@ -173,11 +193,11 @@ export default mixins(
           readonly: this.readonly,
           scrollable: this.scrollable,
           value: this.selectedMonths,
-          tableDate: this.tableYear // `${pad(this.tableYear, 4)}`
+          pickerDate: this.pickerDate
         },
         on: {
           input: (month: number) => this.$emit('update:month', month),
-          'update:tableDate': (value: string) => this.$emit('update:tableDate', value),
+          'update:pickerDate': (value: string) => this.$emit('update:pickerDate', value),
           'click:month': (value: string) => this.$emit('click:month', value),
           'dblclick:month': (value: string) => this.$emit('dblclick:month', value)
         }
@@ -191,7 +211,7 @@ export default mixins(
           locale: this.locale,
           min: this.minYear,
           max: this.maxYear,
-          value: this.tableYear
+          value: this.selectedYears
         },
         on: {
           input: (year: number) => this.$emit('update:year', year)

@@ -5,24 +5,20 @@ import pad from '../VDatePicker/util/pad'
 import Vue, { VNode } from 'vue'
 import { PropValidator } from 'vue/types/options'
 
-enum SelectMode {
-  Hour = 1,
-  Minute = 2,
-  Second = 3
+export const enum SelectMode {
+  Hour = 'hour',
+  Minute = 'minute',
+  Second = 'second'
 }
 
-const selectingNames = { 1: 'hour', 2: 'minute', 3: 'second' }
-const getSelectModeName = (mode: SelectMode) => selectingNames[mode]
-
-export { SelectMode, getSelectModeName }
-
+export type Format = 'ampm' | '24hr'
 export type Period = 'am' | 'pm'
 export type AllowFunction = (val: number) => boolean
 
 interface Allowed {
-  hour: AllowFunction | number[]
-  minute: AllowFunction | number[]
-  second: AllowFunction | number[]
+  hours: AllowFunction | number[]
+  minutes: AllowFunction | number[]
+  seconds: AllowFunction | number[]
 }
 
 export interface Time {
@@ -65,13 +61,29 @@ export function parseTime (value: string | null | Date): Time {
   } as Time
 }
 
+export interface VTimeScopedProps {
+  allowed: {
+    hour: Function
+    minute: Function
+    second: Function
+  }
+  format: Format
+  time: Time
+  period: Period
+  selectMode: SelectMode
+  setPeriod: Function
+  setTime: Function
+  setSelectMode: Function
+  useSeconds: boolean
+}
+
 export default Vue.extend({
   name: 'v-time',
 
   props: {
     allowed: {
       type: Object,
-      default: () => ({ hour: () => true, minute: () => true, second: () => true })
+      default: () => ({ hours: () => true, minutes: () => true, seconds: () => true })
     } as PropValidator<Allowed>,
     format: {
       type: String,
@@ -79,7 +91,7 @@ export default Vue.extend({
       validator (val) {
         return ['ampm', '24hr'].includes(val)
       }
-    } as PropValidator<'ampm' | '24hr'>,
+    } as PropValidator<Format>,
     min: String,
     max: String,
     value: {
@@ -101,12 +113,12 @@ export default Vue.extend({
     isAllowedHourCb (): AllowFunction {
       let cb: AllowFunction
 
-      if (!this.allowed.hour) {
+      if (!this.allowed.hours) {
         cb = () => true
-      } else if (this.allowed.hour instanceof Array) {
-        cb = (val: number) => (this.allowed.hour as number[]).includes(val)
+      } else if (this.allowed.hours instanceof Array) {
+        cb = (val: number) => (this.allowed.hours as number[]).includes(val)
       } else {
-        cb = this.allowed.hour
+        cb = this.allowed.hours
       }
 
       if (!this.min && !this.max) return cb
@@ -124,12 +136,12 @@ export default Vue.extend({
       let cb: AllowFunction
 
       const isHourAllowed = !this.isAllowedHourCb || this.internalTime.hour === null || this.isAllowedHourCb(this.internalTime.hour)
-      if (!this.allowed.minute) {
+      if (!this.allowed.minutes) {
         cb = () => true
-      } else if (this.allowed.minute instanceof Array) {
-        cb = (val: number) => (this.allowed.minute as number[]).includes(val)
+      } else if (this.allowed.minutes instanceof Array) {
+        cb = (val: number) => (this.allowed.minutes as number[]).includes(val)
       } else {
-        cb = this.allowed.minute
+        cb = this.allowed.minutes
       }
 
       if (!this.min && !this.max) {
@@ -159,12 +171,12 @@ export default Vue.extend({
           this.isAllowedMinuteCb(this.internalTime.minute)
         )
 
-      if (!this.allowed.second) {
+      if (!this.allowed.seconds) {
         cb = () => true
-      } else if (this.allowed.second instanceof Array) {
-        cb = (val: number) => (this.allowed.second as number[]).includes(val)
+      } else if (this.allowed.seconds instanceof Array) {
+        cb = (val: number) => (this.allowed.seconds as number[]).includes(val)
       } else {
-        cb = this.allowed.second
+        cb = this.allowed.seconds
       }
 
       if (!this.min && !this.max) {
@@ -184,10 +196,7 @@ export default Vue.extend({
           (!cb || cb(val))
       }
     },
-    isAmPm (): boolean {
-      return this.format === 'ampm'
-    },
-    scopedSlotProps (): any {
+    scopedSlotProps (): VTimeScopedProps {
       return {
         allowed: {
           hour: this.isAllowedHourCb,
@@ -195,13 +204,13 @@ export default Vue.extend({
           second: this.isAllowedSecondCb
         },
         format: this.format,
-        isAmPm: this.isAmPm,
         time: this.internalTime,
         period: this.period,
         selectMode: this.selectMode,
         setPeriod: this.setPeriod,
         setTime: this.setTime,
-        setSelectMode: this.setSelectMode
+        setSelectMode: this.setSelectMode,
+        useSeconds: this.useSeconds
       }
     },
     timeAsString (): string | null {

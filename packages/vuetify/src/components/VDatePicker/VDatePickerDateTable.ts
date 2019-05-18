@@ -2,7 +2,7 @@
 import DatePickerTable from './mixins/date-picker-table'
 
 // Utils
-import { pad, createNativeLocaleFormatter, monthChange } from './util'
+import { pad, monthChange } from './util'
 import { createRange } from '../../util/helpers'
 import mixins from '../../util/mixins'
 
@@ -38,7 +38,7 @@ export default mixins(
 
   methods: {
     calculateTableDate (delta: number) {
-      return monthChange(this.tableDate, Math.sign(delta || 1))
+      return monthChange(this.pickerDate, Math.sign(delta || 1))
     },
     genTHead () {
       const days = this.weekDays.map(day => this.$createElement('th', day))
@@ -51,6 +51,7 @@ export default mixins(
       const weekDay = firstDayOfTheMonth.getUTCDay()
       return (weekDay - parseInt(this.firstDayOfWeek) + 7) % 7
     },
+    // TODO: Replace this with external function from VTimestamp/VCalendar
     getWeekNumber () {
       let dayOfYear = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334][this.displayedMonth]
       if (this.displayedMonth > 1 &&
@@ -74,6 +75,17 @@ export default mixins(
         }, String(weekNumber).padStart(2, '0'))
       ])
     },
+    genButtonEvents (value: string, isAllowed: boolean) {
+      if (this.disabled) return undefined
+
+      return {
+        click: () => {
+          isAllowed && !this.readonly && this.$emit('input', value)
+          this.$emit(`click:date`, value)
+        },
+        dblclick: () => this.$emit(`dblclick:date`, value)
+      }
+    },
     genTBody () {
       const children = []
       const daysInMonth = new Date(this.displayedYear, this.displayedMonth + 1, 0).getDate()
@@ -88,7 +100,7 @@ export default mixins(
         const date = `${this.displayedYear}-${pad(this.displayedMonth + 1)}-${pad(day)}`
 
         rows.push(this.$createElement('td', [
-          this.genButton(date, true, 'date', this.dateFormat)
+          this.genButton(date, true, this.dateFormat)
         ]))
 
         if (rows.length % (this.showWeekNumbers ? 8 : 7) === 0) {

@@ -4,14 +4,16 @@ import './VTimePickerClock.sass'
 import Colorable from '../../mixins/colorable'
 import Themeable from '../../mixins/themeable'
 
+// Helpers
+import { pad } from '../VDatePicker/util'
+import { deepEqual, convertToUnit } from '../../util/helpers'
+import { genPickerButton } from '../VPicker/VPicker'
+
 // Types
 import mixins, { ExtractVue } from '../../util/mixins'
 import Vue, { VNode } from 'vue'
-import { SelectMode, Time, convert24to12, getSelectModeName, AllowFunction } from './VTime'
+import { SelectMode, Time, convert24to12, AllowFunction, Format } from './VTime'
 import { PropValidator } from 'vue/types/options'
-import { pad } from '../VDatePicker/util'
-import { deepEqual, convertToUnit } from '../../util/helpers'
-import { genPickerButton } from '../VPicker'
 
 interface Point {
   x: number
@@ -65,15 +67,15 @@ export default mixins<options &
       default: () => ({ hour: () => true, minute: () => true, second: () => true })
     } as PropValidator<Allowed>,
     disabled: Boolean,
-    isAmPm: Boolean,
     period: String,
     readonly: Boolean,
+    format: String as PropValidator<Format>,
     rotate: {
       type: Number,
       default: 0
     },
     scrollable: Boolean,
-    selectMode: Number as PropValidator<SelectMode>,
+    selectMode: String as PropValidator<SelectMode>,
     showAmPm: Boolean,
     useSeconds: Boolean,
     size: [Number, String],
@@ -89,6 +91,9 @@ export default mixins<options &
   },
 
   computed: {
+    isAmPm (): boolean {
+      return this.format === 'ampm'
+    },
     isHourMode (): boolean {
       return this.internalSelectMode === SelectMode.Hour
     },
@@ -181,12 +186,15 @@ export default mixins<options &
       const children: VNode[] = []
 
       for (let value = this.min; value <= this.max; value = value + this.step) {
-        const color = value === this.value && (this.color || 'accent')
-        const displayValue = this.isHourMode && this.isAmPm ? convert24to12(value) : pad(value, 2)
+        const compareValue = this.isHourMode && this.isAmPm ? convert24to12(value) : value
+        const currentValue = this.isHourMode && this.isAmPm ? convert24to12(this.value || 0) : this.value || 0
+        const color = this.value !== null && compareValue === currentValue && (this.color || 'accent')
+        const displayValue = !this.isHourMode ? pad(value, 2) : compareValue
+
         children.push(this.$createElement('span', this.setBackgroundColor(color, {
           staticClass: 'v-time-picker-clock__item',
           'class': {
-            'v-time-picker-clock__item--active': value === (this.value || 0),
+            'v-time-picker-clock__item--active': compareValue === currentValue,
             'v-time-picker-clock__item--disabled': this.disabled || !this.isAllowed(value)
           },
           style: this.getTransform(value),
@@ -236,7 +244,7 @@ export default mixins<options &
       this.isDragging = false
       if (this.valueOnMouseUp !== null && this.isAllowed(this.valueOnMouseUp)) {
         this.update(this.valueOnMouseUp)
-        this.$emit(`select:${getSelectModeName(this.internalSelectMode)}`, this.valueOnMouseUp)
+        this.$emit(`select:${this.internalSelectMode}`, this.valueOnMouseUp)
         this.cycleMode()
       }
     },
@@ -343,7 +351,7 @@ export default mixins<options &
         height: convertToUnit(this.size)
       }
     }, [
-      this.showAmPm && this.genClockAmPm(),
+      this.isAmPm && this.showAmPm && this.genClockAmPm(),
       this.genClock()
     ])
   }

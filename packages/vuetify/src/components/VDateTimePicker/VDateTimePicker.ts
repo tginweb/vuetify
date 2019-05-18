@@ -7,8 +7,8 @@ import Vue, { VNode } from 'vue'
 // Components
 import VPicker from '../VPicker'
 import { VTabs, VTab, VTabsItems, VTabItem } from '../VTabs'
-import VTime, { Period, Time, SelectMode } from '../VTimePicker/VTime'
-import VDate, { PickerType } from '../VDatePicker/VDate'
+import VTime, { Period, Time, SelectMode, VTimeScopedProps } from '../VTimePicker/VTime'
+import VDate, { PickerType, VDateScopedProps } from '../VDatePicker/VDate'
 import VDatePickerBody from '../VDatePicker/VDatePickerBody'
 
 // Mixins
@@ -41,9 +41,9 @@ export default Vue.extend({
 
   data: () => ({
     mode: 0,
-    date: '2019-04-01',
-    scopedTimeProps: null,
-    scopedDateProps: null
+    internalDate: null as string | null,
+    scopedTimeProps: null as VTimeScopedProps | null,
+    scopedDateProps: null as VDateScopedProps | null
   }),
 
   methods: {
@@ -85,13 +85,13 @@ export default Vue.extend({
       }, [
         this.$createElement(VDatePickerTitle, {
           props: {
+            dateFormat: dateProps.formatters.titleDate,
+            yearFormat: dateProps.formatters.year,
             value: dateProps.value,
             disabled: this.disabled,
             readonly: this.readonly,
-            yearIcon: this.dateProps.yearIcon,
-            selectingYear: dateProps.type === PickerType.Year,
-            dateFormat: this.landscape ? dateProps.formatters.landscapeTitleDate : dateProps.formatters.titleDate,
-            yearFormat: dateProps.formatters.year
+            selectingYear: dateProps.activePicker === PickerType.Year,
+            yearIcon: this.dateProps.yearIcon
           },
           on: {
             'update:activePicker': dateProps.updateActivePicker
@@ -114,57 +114,59 @@ export default Vue.extend({
         })
       ])
     },
-    genDatePicker () {
-      return this.$createElement(VDate, {
+    genDatePickerBody (props: VDateScopedProps) {
+      this.scopedDateProps = props
+      return this.$createElement(VDatePickerBody, {
         props: {
           ...this.dateProps,
-          value: this.date
+          ...props
         },
         on: {
-          input: (date: string) => this.date = date
-        },
-        scopedSlots: {
-          default: (props: any) => {
-            this.scopedDateProps = props
-            return this.$createElement(VDatePickerBody, {
-              props: {
-                ...this.dateProps,
-                ...props
-              },
-              on: {
-                'update:year': props.yearClick,
-                'update:month': props.monthClick,
-                'update:date': props.dateClick,
-                'update:activePicker': props.updateActivePicker
-              }
-            })
-          }
+          'update:year': props.yearClick,
+          'update:month': props.monthClick,
+          'update:date': props.dateClick,
+          'update:activePicker': props.updateActivePicker
         }
       })
     },
-    genClock (v: any) {
-      this.scopedTimeProps = v
+    genDatePicker () {
+      return this.$createElement(VDate, {
+        props: {
+          ...this.dateProps// ,
+          // value: this.internalDate
+        },
+        on: {
+          input: (date: string) => this.internalDate = date
+        },
+        scopedSlots: {
+          default: props => this.genDatePickerBody(props)
+        }
+      })
+    },
+    genClock (props: VTimeScopedProps) {
+      this.scopedTimeProps = props
 
       return this.$createElement(VTimePickerClock, {
         props: {
-          allowedValues: v.allowedValues,
+          allowed: props.allowed,
           color: this.color,
           dark: this.dark,
           disabled: this.disabled,
-          isAmPm: v.isAmPm,
+          format: props.format,
           light: this.light,
           readonly: this.readonly,
+          period: props.period,
           scrollable: this.timeProps.scrollable,
-          showAmPm: !this.timeProps.showAmPmInTitle && v.isAmPm,
-          selectMode: v.selectMode,
-          time: v.time,
-          period: v.period,
-          size: 290
+          showAmPm: !this.timeProps.showAmPmInTitle,
+          selectMode: props.selectMode,
+          size: this.width,
+          time: props.time,
+          useSeconds: props.useSeconds
         },
         on: {
-          'update:period': (p: Period) => v.setPeriod(p),
-          'update:time': (t: Time) => v.setTime(t),
-          'update:selectMode': (m: SelectMode) => v.setSelectMode(m)
+          'update:period': (p: Period) => props.setPeriod(p),
+          'update:time': (t: Time) => props.setTime(t),
+          'update:selectMode': (m: SelectMode) => props.setSelectMode(m)
         }
       })
     },
@@ -182,8 +184,8 @@ export default Vue.extend({
           value: this.mode
         }
       }, [
-        this.$createElement(VTabItem, { props: { eager: true } }, [this.genDatePicker()]),
-        this.$createElement(VTabItem, { props: { eager: true } }, [this.genTimePicker()])
+        this.$createElement(VTabItem, { key: 'date', props: { eager: true } }, [this.genDatePicker()]),
+        this.$createElement(VTabItem, { key: 'time', props: { eager: true } }, [this.genTimePicker()])
       ])
     }
   },
