@@ -1,4 +1,5 @@
 {
+  "name": "sushi/vuetify",
   "private": true,
   "workspaces": [
     "packages/*"
